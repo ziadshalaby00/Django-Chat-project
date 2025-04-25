@@ -14,7 +14,17 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 
 class getUser(APIView):
     def get(self, request):
-        user = get_object_or_404(User, id=request.user.id)
+        username = request.GET.get("username")
+        user_id = request.GET.get("user_id")
+        user = None
+        
+        if username:
+            user = get_object_or_404(User, username=username)
+        elif user_id:
+            user = get_object_or_404(User, id=user_id)
+        else:
+            user = get_object_or_404(User, id=request.user.id)
+            
         user = UserSerializer(user)
         return Response({
             "user": user.data
@@ -28,6 +38,16 @@ class ChatViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return Chat.objects.filter(user1=user) | Chat.objects.filter(user2=user)
 
+    def create(self, request, *args, **kwargs):
+
+        request.data["user1"] = request.user.id
+        serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        else:
+            return Response(serializer.errors, status=400)
 
 class MessageViewSet(viewsets.ModelViewSet):
     serializer_class = MessageSerializer

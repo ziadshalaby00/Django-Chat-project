@@ -25,6 +25,8 @@ router = DefaultRouter()
 router.register(r'chats', ChatViewSet, basename='chat')
 
 urlpatterns = [
+    *router.urls,
+    
     path('login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('getUser/', getUser.as_view(), name='getUser'),
