@@ -17,6 +17,7 @@ Including another URLconf
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.urls import path
 from .views import *
+from .consumers import ChatConsumer
 
 from rest_framework.routers import DefaultRouter
 from .views import ChatViewSet, MessageViewSet

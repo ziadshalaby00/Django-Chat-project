@@ -1,6 +1,7 @@
 from django.db import models
 from django.db import models
 from django.contrib.auth.models import User
+from django.forms import ValidationError
 
 # Create your models here.
 # chat/models.py
@@ -8,10 +9,24 @@ from django.contrib.auth.models import User
 class Chat(models.Model):
     user1 = models.ForeignKey(User, related_name='chat_user1', on_delete=models.CASCADE)
     user2 = models.ForeignKey(User, related_name='chat_user2', on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('user1', 'user2')  # منع تكرار نفس الثنائي
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user1', 'user2'],
+                name='unique_chat_users_direct'
+            )
+        ]
 
+    def clean(self):
+        if Chat.objects.filter(user1=self.user2, user2=self.user1).exists():
+            raise ValidationError('unique_chat_users_direct')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+        
     def __str__(self):
         return f'Chat between {self.user1} and {self.user2}'
 

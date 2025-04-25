@@ -9,7 +9,8 @@ from rest_framework import viewsets, permissions
 from .models import Chat, Message
 from .serializers import ChatSerializer, MessageSerializer
 from rest_framework.permissions import IsAuthenticated, AllowAny
-
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 # Create your views here.
 
 class getUser(APIView):
@@ -39,12 +40,21 @@ class ChatViewSet(viewsets.ModelViewSet):
         return Chat.objects.filter(user1=user) | Chat.objects.filter(user2=user)
 
     def create(self, request, *args, **kwargs):
-
         request.data["user1"] = request.user.id
         serializer = self.get_serializer(data=request.data)
 
         if serializer.is_valid():
-            serializer.save()
+            chat = serializer.save()
+
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                'chat_updates',
+                {
+                    'type': 'chat_created',
+                    'chat': ChatSerializer(chat).data,
+                }
+            )
+
             return Response(serializer.data, status=201)
         else:
             return Response(serializer.errors, status=400)
