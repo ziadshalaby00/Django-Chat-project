@@ -25,15 +25,16 @@ SECRET_KEY = 'django-insecure-t97sx&me6^_p(mpc3vjkk^^-t#)b#18n3x-&+40^*c8se$vol2
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:4200',  # السماح بـ Angular على localhost
-    'http://127.0.0.1:8000',  # السماح بـ Django على 127.0.0.1
-    'https://*.ngrok-free.app',  # السماح بجميع النطاقات الفرعية من ngrok
+ALLOWED_HOSTS = ['*']
+# CORS_ALLOWED_ORIGINS = []
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'authorization',
+    'ngrok-skip-browser-warning',  # إضافة هذا الرأس إذا كان موجودًا
 ]
 
 # Application definition
-
 INSTALLED_APPS = [
     'daphne',
     'django.contrib.admin',

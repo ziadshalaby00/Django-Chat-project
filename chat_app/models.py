@@ -28,7 +28,7 @@ class Chat(models.Model):
         super().save(*args, **kwargs)
         
     def __str__(self):
-        return f'Chat between {self.user1} and {self.user2}'
+        return f'{self.id} Chat between {self.user1} and {self.user2}'
 
 class Message(models.Model):
     chat = models.ForeignKey(Chat, related_name='messages', on_delete=models.CASCADE)
