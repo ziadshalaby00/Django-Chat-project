@@ -26,7 +26,11 @@ SECRET_KEY = 'django-insecure-t97sx&me6^_p(mpc3vjkk^^-t#)b#18n3x-&+40^*c8se$vol2
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:4200',  # السماح بـ Angular على localhost
+    'http://127.0.0.1:8000',  # السماح بـ Django على 127.0.0.1
+    'https://*.ngrok-free.app',  # السماح بجميع النطاقات الفرعية من ngrok
+]
 
 # Application definition
 
@@ -46,6 +50,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -53,7 +58,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',  # هذا اختياري لكنه يساعد في المعالجة
 ]
 
@@ -153,5 +157,3 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=6),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
-
-CORS_ALLOW_ALL_ORIGINS = True

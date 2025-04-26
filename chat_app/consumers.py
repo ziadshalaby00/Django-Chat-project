@@ -6,7 +6,7 @@ from channels.db import database_sync_to_async
 from .models import Chat, Message
 from .serializers import *
 
-class ChatConsumer(AsyncWebsocketConsumer):
+class ChatConsumerMes(AsyncWebsocketConsumer):
     async def connect(self):
         self.chat_id = self.scope['url_route']['kwargs']['chat_id']
         self.user = self.scope["user"]
@@ -38,25 +38,25 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         data = json.loads(text_data)
         message = data['message']
+        print("🚀 RECEIVED:", text_data)
+        
+        # حفظ الرسالة واسترجاع تفاصيلها
+        message_obj = await self.save_message(self.chat_id, self.user, message)
 
-        # حفظ الرسالة في قاعدة البيانات
-        await self.save_message(self.chat_id, self.user, message)
-
+        # تسلسل البيانات (serialize)
+        serialized_data = MessageSerializer(message_obj).data
+        
         # بث الرسالة للمجموعة
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 'type': 'chat_message',
-                'message': message,
-                'sender': self.user.username,
+                'data': serialized_data,
             }
         )
 
     async def chat_message(self, event):
-        await self.send(text_data=json.dumps({
-            'message': event['message'],
-            'sender': event['sender'],
-        }))
+        await self.send(text_data=json.dumps(event['data']))
 
     @database_sync_to_async
     def is_user_in_chat(self, chat_id, user):
