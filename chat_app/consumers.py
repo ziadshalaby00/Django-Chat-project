@@ -1,17 +1,21 @@
 # chat/consumers.py
+import time, json, os, subprocess, tempfile
+from django.core.files.base import ContentFile
 
-import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
 from .models import Chat, Message
 from .serializers import *
+from django.core.files.base import ContentFile
 
 class ChatConsumerMes(AsyncWebsocketConsumer):
     async def connect(self):
         self.chat_id = self.scope['url_route']['kwargs']['chat_id']
         self.user = self.scope["user"]
-
-        if self.user.is_anonymous:
+        self.type = None
+        self.file_name = None
+        
+        if self.user is None or self.user.is_anonymous:
             await self.close()
             return
 
@@ -35,26 +39,6 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
             self.channel_name
         )
 
-    async def receive(self, text_data):
-        data = json.loads(text_data)
-        message = data['message']
-        print("🚀 RECEIVED:", text_data)
-        
-        # حفظ الرسالة واسترجاع تفاصيلها
-        message_obj = await self.save_message(self.chat_id, self.user, message)
-
-        # تسلسل البيانات (serialize)
-        serialized_data = MessageSerializer(message_obj).data
-        
-        # بث الرسالة للمجموعة
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                'type': 'chat_message',
-                'data': serialized_data,
-            }
-        )
-
     async def chat_message(self, event):
         await self.send(text_data=json.dumps(event['data']))
 
@@ -69,8 +53,119 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
     @database_sync_to_async
     def save_message(self, chat_id, user, content):
         chat = Chat.objects.get(id=chat_id)
-        return Message.objects.create(chat=chat, sender=user, content=content)
-    
+        return Message.objects.create(
+            chat=chat, 
+            sender=user, 
+            content=content, 
+            type='message'
+        )
+        
+    def reset(self):
+        self.type = None
+        self.file_name = None
+        
+    async def receive(self, text_data=None, bytes_data=None):
+        obj = None
+
+        if text_data:
+            data = json.loads(text_data)
+            type = data.get('type', '')
+            
+            if type == 'message':
+                message = data.get('message', '')
+                if message:
+                    obj = await self.save_message(self.chat_id, self.user, message)
+                    
+            elif type == 'audio':
+                self.type = 'audio'
+            
+            elif type == 'file':
+                self.type = 'file'
+                self.file_name = data.get('file_name', '')
+                
+        elif bytes_data and self.type == 'audio':
+            obj = await self.save_file(self.chat_id, self.user, bytes_data)
+
+        elif bytes_data and self.type == 'file' and self.file_name:
+            obj = await self.save_file(self.chat_id, self.user, bytes_data, self.file_name)
+            
+        if obj:
+            serialized_data = MessageSerializer(obj).data
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    'type': 'chat_message',
+                    'data': serialized_data,
+                }
+            )
+            
+            self.reset()
+        
+    @database_sync_to_async
+    def save_audio(self, chat_id, user, raw_audio):
+        try:
+            # إنشاء ملف مؤقت بصيغة webm
+            with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_input:
+                temp_input.write(raw_audio)
+                temp_input.flush()
+                input_path = temp_input.name
+
+            # إعداد مسار ملف الإخراج المؤقت بصيغة mp3
+            output_path = input_path.replace(".webm", ".mp3")
+
+            # استخدام ffmpeg لتحويل الملف إلى mp3
+            subprocess.run(
+                [
+                    "ffmpeg", "-y",
+                    "-i", input_path,
+                    "-codec:a", "libmp3lame",
+                    "-qscale:a", "5",  # جودة متوسطة (من 0 إلى 9، 0 أفضل جودة)
+                    output_path
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+
+            # قراءة محتوى ملف mp3
+            with open(output_path, "rb") as f:
+                mp3_data = f.read()
+
+            # إنشاء اسم الملف النهائي
+            filename = f"{user.id}_{chat_id}_{int(time.time())}.mp3"
+
+            # حفظ الرسالة والملف
+            message = Message.objects.create(
+                chat_id=chat_id,
+                sender=user,
+                type='audio'
+            )
+            message.audio_file.save(filename, ContentFile(mp3_data))
+
+            return message
+
+        finally:
+            # تنظيف الملفات المؤقتة
+            if os.path.exists(input_path):
+                os.remove(input_path)
+            if os.path.exists(output_path):
+                os.remove(output_path)
+                
+    @database_sync_to_async
+    def save_file(self, chat_id, user, raw_file, filename):
+        # تحديد اسم الملف الكامل (مثلاً: 123_5_1714300000_document.pdf)
+        base, ext = os.path.splitext(filename)
+        final_filename = f"{user.id}_{chat_id}_{int(time.time())}_{base}{ext}"
+
+        # إنشاء الرسالة في قاعدة البيانات
+        message = Message.objects.create(
+            chat_id=chat_id,
+            sender=user,
+            type='file',
+        )
+
+        # حفظ الملف نفسه
+        message.file.save(final_filename, ContentFile(raw_file))
+        return message
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -81,7 +176,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.channel_layer.group_add(
+            self.group_name, 
+            self.channel_name
+        )
+        
         await self.accept()
 
         # إرسال المحادثات الخاصة بالمستخدم
@@ -92,7 +191,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         }))
 
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(self.group_name, self.channel_name)
+        await self.channel_layer.group_discard(
+            self.group_name, 
+            self.channel_name
+        )
 
     async def receive(self, text_data):
         pass

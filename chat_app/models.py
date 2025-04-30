@@ -2,7 +2,9 @@ from django.db import models
 from django.db import models
 from django.contrib.auth.models import User
 from django.forms import ValidationError
-
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
+import os
 # Create your models here.
 # chat/models.py
 
@@ -33,8 +35,21 @@ class Chat(models.Model):
 class Message(models.Model):
     chat = models.ForeignKey(Chat, related_name='messages', on_delete=models.CASCADE)
     sender = models.ForeignKey(User, related_name='sent_messages', on_delete=models.CASCADE)
-    content = models.TextField()
+    type = models.CharField(max_length=25, choices=[
+        ('message', 'message'), 
+        ('audio', 'audio'),
+        ('file', 'file')
+    ], default='message')
+    
+    content = models.TextField(blank=True, null=True)
+    audio_file = models.FileField(upload_to='audio', null=True, blank=True)
+    file = models.FileField(upload_to='file', null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f'{self.sender} sent: {self.content[:30]}'
+        return f'{self.sender} sent: {self.type} --- {self.chat}'
+    
+@receiver(post_delete, sender=Message)
+def delete_audio_file(sender, instance, **kwargs):
+    if instance.audio_file and os.path.isfile(instance.audio_file.path):
+        os.remove(instance.audio_file.path)
