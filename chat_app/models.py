@@ -50,6 +50,11 @@ class Message(models.Model):
         return f'{self.sender} sent: {self.type} --- {self.chat}'
     
 @receiver(post_delete, sender=Message)
-def delete_audio_file(sender, instance, **kwargs):
-    if instance.audio_file and os.path.isfile(instance.audio_file.path):
+def delete_attached_files(sender, instance, **kwargs):
+    # حذف الملف الصوتي إن وجد
+    if instance.audio_file and instance.audio_file.path and os.path.isfile(instance.audio_file.path):
         os.remove(instance.audio_file.path)
+
+    # حذف الملف العام إن وجد
+    if instance.file and instance.file.path and os.path.isfile(instance.file.path):
+        os.remove(instance.file.path)

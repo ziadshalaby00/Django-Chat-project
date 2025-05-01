@@ -1,6 +1,7 @@
 # chat/consumers.py
 import time, json, os, subprocess, tempfile
 from django.core.files.base import ContentFile
+import magic
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
@@ -69,24 +70,37 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
 
         if text_data:
             data = json.loads(text_data)
-            type = data.get('type', '')
+            type = data.get('type', None)
+            print(type)
             
             if type == 'message':
-                message = data.get('message', '')
+                message = data.get('message', None)
                 if message:
                     obj = await self.save_message(self.chat_id, self.user, message)
                     
             elif type == 'audio':
                 self.type = 'audio'
-            
+
             elif type == 'file':
                 self.type = 'file'
-                self.file_name = data.get('file_name', '')
+                self.file_name = data.get('file_name', None)
                 
         elif bytes_data and self.type == 'audio':
-            obj = await self.save_file(self.chat_id, self.user, bytes_data)
+            print('inside audio', self.type)
+            try:
+                obj = await self.save_audio(self.chat_id, self.user, bytes_data)
+            except Exception as e:
+                self.reset()
+                return
 
         elif bytes_data and self.type == 'file' and self.file_name:
+            print('inside file', self.file_name)
+            error = validate_file_upload(bytes_data)
+            if error:
+                print(error)
+                self.reset()
+                return
+            
             obj = await self.save_file(self.chat_id, self.user, bytes_data, self.file_name)
             
         if obj:
@@ -104,6 +118,11 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
     @database_sync_to_async
     def save_audio(self, chat_id, user, raw_audio):
         try:
+            # فحص نوع الملف باستخدام python-magic
+            mime_type = magic.from_buffer(raw_audio, mime=True)
+            if mime_type != "video/webm":
+                raise ValueError("Invalid file type. Only webm audio is accepted.")
+        
             # إنشاء ملف مؤقت بصيغة webm
             with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_input:
                 temp_input.write(raw_audio)
@@ -152,6 +171,7 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
                 
     @database_sync_to_async
     def save_file(self, chat_id, user, raw_file, filename):
+        print('inside save file', filename)
         # تحديد اسم الملف الكامل (مثلاً: 123_5_1714300000_document.pdf)
         base, ext = os.path.splitext(filename)
         final_filename = f"{user.id}_{chat_id}_{int(time.time())}_{base}{ext}"
@@ -213,4 +233,35 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def get_user_chats(self):
         chats = (Chat.objects.filter(user1=self.user) | Chat.objects.filter(user2=self.user)).order_by('-created_at')
         serializer = ChatSerializer(chats, many=True)
+        print(serializer.data)
         return serializer.data
+
+
+
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+
+# قائمة MIME types المقبولة
+ALLOWED_MIME_TYPES = [
+    "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml", "image/bmp",
+    "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/plain", "application/vnd.oasis.opendocument.text",
+    "audio/mpeg", "audio/wav", "audio/ogg", "audio/x-m4a", "audio/aac", "audio/flac",
+    "video/mp4", "video/x-matroska", "video/quicktime", "video/x-msvideo", "video/webm", "video/x-flv",
+    "application/zip", "application/x-rar-compressed", "application/x-7z-compressed", "application/x-tar", "application/gzip",
+    "text/x-python", "application/javascript", "text/html", "text/css", "application/json", "application/xml", "text/csv"
+]
+
+def validate_file_upload(bytes_data: bytes) -> str | None:
+    if len(bytes_data) > MAX_FILE_SIZE:
+        return "File too large (max 50MB)"
+    
+    # تحقق من نوع الملف الحقيقي
+    mime = magic.Magic(mime=True)
+    file_mime_type = mime.from_buffer(bytes_data)
+
+    if file_mime_type not in ALLOWED_MIME_TYPES:
+        return f"File MIME type '{file_mime_type}' is not allowed"
+    
+    return None
