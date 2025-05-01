@@ -1,5 +1,4 @@
-from django.shortcuts import render
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -11,6 +10,11 @@ from .serializers import ChatSerializer, MessageSerializer
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+import time, os, subprocess, tempfile
+from django.core.files.base import ContentFile
+import magic
+from .validators import *
+from django.db.models import Q
 # Create your views here.
 
 class getUser(APIView):
@@ -33,7 +37,6 @@ class getUser(APIView):
 
 class ChatViewSet(viewsets.ModelViewSet):
     serializer_class = ChatSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -41,17 +44,26 @@ class ChatViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         request.data["user1"] = request.user.id
-        serializer = self.get_serializer(data=request.data)
+        chat_seri = self.get_serializer(data=request.data)
 
-        if serializer.is_valid():
-            chat = serializer.save()
+        if chat_seri.is_valid():
+            chat = chat_seri.save()
 
             channel_layer = get_channel_layer()
+            
             async_to_sync(channel_layer.group_send)(
-                'chat_updates',
+                f"user_{chat.user1.id}",
                 {
-                    'type': 'chat_created',
-                    'chat': ChatSerializer(chat).data,
+                    'type': 'chat.created',
+                    'chat': ChatSerializer(chat).data
+                }
+            )
+
+            async_to_sync(channel_layer.group_send)(
+                f"user_{chat.user2.id}",
+                {
+                    'type': 'chat.created',
+                    'chat': ChatSerializer(chat).data
                 }
             )
 
@@ -59,17 +71,110 @@ class ChatViewSet(viewsets.ModelViewSet):
         else:
             return Response(serializer.errors, status=400)
 
-class MessageViewSet(viewsets.ModelViewSet):
-    serializer_class = MessageSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class MessageAPIView(APIView):
+    def get(self, request, chat_id):
+        user = request.user
+        chat = get_object_or_404(Chat, Q(id=chat_id) & (Q(user1=user) | Q(user2=user)))
 
-    def get_queryset(self):
-        chat_id = self.kwargs.get('chat_id')
-        chat = get_object_or_404(Chat, id=chat_id)
-        user = self.request.user
-        if user != chat.user1 and user != chat.user2:
-            return Message.objects.none()
-        return Message.objects.filter(chat=chat)
+        messages = Message.objects.filter(chat=chat).order_by('timestamp')
+        serializer = MessageSerializer(messages, many=True)
+        return Response(serializer.data)
+
+class UploadAudioAPIView(APIView):
+    def post(self, request, chat_id):
+        user = request.user
+        chat = get_object_or_404(Chat, Q(id=chat_id) & (Q(user1=user) | Q(user2=user)))
+        raw_audio = request.FILES.get('audio')
+
+        if not raw_audio:
+            return Response({'error': 'Audio file is required.'}, status=400)
+
+        mime_type = magic.from_buffer(raw_audio.read(1024), mime=True)
+        raw_audio.seek(0)
+        if mime_type != "video/webm":
+            return Response({'error': 'Only webm audio allowed.'}, status=400)
+
+        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_input:
+            for chunk in raw_audio.chunks():
+                temp_input.write(chunk)
+            input_path = temp_input.name
+
+        output_path = input_path.replace(".webm", ".mp3")
+
+        subprocess.run([
+            "ffmpeg", "-y",
+            "-i", input_path,
+            "-codec:a", "libmp3lame",
+            "-qscale:a", "5",
+            output_path
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        with open(output_path, "rb") as f:
+            mp3_data = f.read()
+
+
+        message = Message.objects.create(
+            chat=chat,
+            sender=user,
+            type='audio'
+        )
+        
+        filename = f"{user.id}_{chat.id}_{int(time.time())}.mp3"
+        message.audio_file.save(filename, ContentFile(mp3_data))
+
+        os.remove(input_path)
+        os.remove(output_path)
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{chat_id}",
+            {
+                "type": "chat_message",
+                "data": MessageSerializer(message).data
+            }
+        )
+        
+        return Response(MessageSerializer(message).data, status=201)
+
+
+class UploadFileAPIView(APIView):
+    def post(self, request, chat_id):
+        user = request.user
+        chat = get_object_or_404(Chat, Q(id=chat_id) & (Q(user1=user) | Q(user2=user)))
+        
+        uploaded_file = request.FILES.get('file')
+        if not uploaded_file:
+            return Response({'error': 'No file uploaded'}, status=400)
+
+        # اقرأ الملف على شكل bytes للتحقق من حجمه ونوعه
+        file_bytes = uploaded_file.read()
+        uploaded_file.seek(0)  # ← لإرجاع المؤشر كي لا يفقد الملف لاحقًا
+
+        # تحقق من الحجم والنوع
+        error = validate_file_upload(file_bytes)
+        if error:
+            return Response({'error': error}, status=400)
+
+        message = Message.objects.create(
+            chat=chat,
+            sender=user,
+            type='file'
+        )
+
+        base, ext = os.path.splitext(uploaded_file.name)
+        filename = f"{user.id}_{chat.id}_{int(time.time())}_{base}{ext}"
+        message.file.save(filename, uploaded_file)
+
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{chat_id}",
+            {
+                "type": "chat_message",
+                "data": MessageSerializer(message).data
+            }
+        )
+        
+        return Response(MessageSerializer(message).data, status=201)
 
 class SignupView(APIView):
     permission_classes = [AllowAny]

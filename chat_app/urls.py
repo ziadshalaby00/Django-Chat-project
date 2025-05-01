@@ -17,10 +17,7 @@ Including another URLconf
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.urls import path
 from .views import *
-from .consumers import ChatConsumer
-
 from rest_framework.routers import DefaultRouter
-from .views import ChatViewSet, MessageViewSet
 
 router = DefaultRouter()
 router.register(r'chats', ChatViewSet, basename='chat')
@@ -34,5 +31,7 @@ urlpatterns = [
     
     path('signup/', SignupView.as_view(), name='signup'),
     
-    path('chats/<int:chat_id>/messages/', MessageViewSet.as_view({'get': 'list', 'post': 'create'}), name='chat-messages'),
+    path('chat/<int:chat_id>/messages/', MessageAPIView.as_view(), name='chat-messages'),
+    path('messages/<int:chat_id>/upload-audio/', UploadAudioAPIView.as_view(), name='upload-audio'),
+    path('messages/<int:chat_id>/upload-file/', UploadFileAPIView.as_view(), name='upload-file'),
 ]
