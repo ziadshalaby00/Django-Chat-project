@@ -26,13 +26,23 @@ SECRET_KEY = 'django-insecure-t97sx&me6^_p(mpc3vjkk^^-t#)b#18n3x-&+40^*c8se$vol2
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
-# CORS_ALLOWED_ORIGINS = []
-CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_HEADERS = [
     'content-type',
     'authorization',
     'ngrok-skip-browser-warning',  # إضافة هذا الرأس إذا كان موجودًا
 ]
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:4200",
+    "https://localhost:4200",
+]
+
+HTTPONLY = True
+SECURE = True
+SAMESITE = 'None'
+PATH = '/'
 
 # Application definition
 INSTALLED_APPS = [
@@ -155,7 +165,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=6),
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 

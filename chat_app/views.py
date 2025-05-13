@@ -15,18 +15,19 @@ from django.core.files.base import ContentFile
 import magic
 from .validators import *
 from django.db.models import Q
+
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.conf import settings
 # Create your views here.
 
 class getUser(APIView):
     def get(self, request):
         username = request.GET.get("username")
-        user_id = request.GET.get("user_id")
         user = None
         
         if username:
             user = get_object_or_404(User, username=username)
-        elif user_id:
-            user = get_object_or_404(User, id=user_id)
         else:
             user = get_object_or_404(User, id=request.user.id)
             
@@ -185,3 +186,81 @@ class SignupView(APIView):
             serializer.save()
             return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+
+        refresh_token = response.data.get('refresh')
+        response.data.pop('refresh')
+        
+        response.set_cookie(
+            key='refresh',
+            value=refresh_token,
+            
+            httponly=settings.HTTPONLY,
+            secure=settings.SECURE,
+            samesite=settings.SAMESITE,
+            path=settings.PATH,
+            
+            max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds(),
+        )
+        return response
+
+class CustomTokenRefreshView(TokenRefreshView):
+    def post(self, request, *args, **kwargs):
+        refresh_token = request.COOKIES.get('refresh')
+        
+        if refresh_token is None:
+            return Response({'detail': 'Refresh token not found in cookies'}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        serializer = self.get_serializer(data={'refresh': refresh_token})
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            response = Response({'detail': 'Invalid or expired refresh token'}, status=status.HTTP_401_UNAUTHORIZED)
+            return response
+
+        access_token = serializer.validated_data.get('access')
+
+        # توليد refresh جديد يدويًا:
+        old_refresh = RefreshToken(refresh_token)
+        user_id = old_refresh["user_id"]
+        try:
+            user = User.objects.get(id=user_id)
+        except Exception:
+            response = Response({'detail': 'User Not Found'}, status=status.HTTP_401_UNAUTHORIZED)
+            return response
+        
+        new_refresh = RefreshToken.for_user(user)
+        
+        response = Response({
+            'access': access_token,
+        })
+      
+        response.set_cookie(
+            key='refresh',
+            value=str(new_refresh),
+            httponly=settings.HTTPONLY,
+            secure=settings.SECURE,
+            samesite=settings.SAMESITE,
+            path=settings.PATH,
+            max_age=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'].total_seconds(),
+        )
+        return response
+
+class logout(APIView):
+    permission_classes = [AllowAny]
+    def post(self, request):
+        response = Response({
+            'success': "Logged out successfully"
+        })
+        response.delete_cookie(
+            key='refresh',
+            samesite=settings.SAMESITE,
+            path=settings.PATH,
+        )
+        return response
