@@ -51,26 +51,29 @@ class ChatViewSet(viewsets.ModelViewSet):
             chat = chat_seri.save()
 
             channel_layer = get_channel_layer()
-            
+
+            # إشعار للمستخدم الأول دائمًا
             async_to_sync(channel_layer.group_send)(
                 f"user_{chat.user1.id}",
                 {
                     'type': 'chat.created',
-                    'chat': ChatSerializer(chat).data
+                    'chat': chat_seri.data
                 }
             )
 
-            async_to_sync(channel_layer.group_send)(
-                f"user_{chat.user2.id}",
-                {
-                    'type': 'chat.created',
-                    'chat': ChatSerializer(chat).data
-                }
-            )
+            # إشعار للمستخدم الثاني فقط إذا كان مختلفًا
+            if chat.user1.id != chat.user2.id:
+                async_to_sync(channel_layer.group_send)(
+                    f"user_{chat.user2.id}",
+                    {
+                        'type': 'chat.created',
+                        'chat': chat_seri.data
+                    }
+                )
 
-            return Response(serializer.data, status=201)
+            return Response(chat_seri.data, status=201)
         else:
-            return Response(serializer.errors, status=400)
+            return Response(chat_seri.errors, status=400)
 
 class MessageAPIView(APIView):
     def get(self, request, chat_id):
@@ -102,17 +105,22 @@ class UploadAudioAPIView(APIView):
 
         output_path = input_path.replace(".webm", ".mp3")
 
-        subprocess.run([
+
+        result = subprocess.run([
             "ffmpeg", "-y",
             "-i", input_path,
             "-codec:a", "libmp3lame",
             "-qscale:a", "5",
             output_path
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        if result.returncode != 0:
+            os.remove(input_path)
+            return Response({'error': 'Audio conversion failed'}, status=500)
+
 
         with open(output_path, "rb") as f:
             mp3_data = f.read()
-
 
         message = Message.objects.create(
             chat=chat,
@@ -176,6 +184,61 @@ class UploadFileAPIView(APIView):
         )
         
         return Response(MessageSerializer(message).data, status=201)
+    
+    
+class UpdateMessageAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, message_id):
+        user = request.user
+        message = get_object_or_404(Message, id=message_id, sender=user)
+
+        if message.type != 'message':
+            return Response({'error': 'Only text messages can be edited.'}, status=400)
+
+        new_content = request.data.get("content", "").strip()
+        if not new_content:
+            return Response({'error': 'Content is required'}, status=400)
+
+        message.content = new_content
+        message.save()
+
+        # إرسال إشعار عبر WebSocket
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{message.chat.id}",
+            {
+                "type": "message.updated",
+                "data": MessageSerializer(message).data
+            }
+        )
+
+        return Response(MessageSerializer(message).data, status=200)
+
+class DeleteMessageAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, message_id):
+        user = request.user
+        message = get_object_or_404(Message, id=message_id, sender=user)
+        chat_id = message.chat.id
+        serialized_data = MessageSerializer(message).data
+
+        message.delete()
+
+        # إرسال إشعار بالحذف
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"chat_{chat_id}",
+            {
+                "type": "message.deleted",
+                "data": serialized_data
+            }
+        )
+
+        return Response({'detail': 'Message deleted'}, status=200)
+
+# * ##################################################################################
 
 class SignupView(APIView):
     permission_classes = [AllowAny]
@@ -186,7 +249,6 @@ class SignupView(APIView):
             serializer.save()
             return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):

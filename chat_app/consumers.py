@@ -4,6 +4,7 @@ from channels.db import database_sync_to_async
 from .models import Chat, Message
 from .serializers import *
 import json
+from django.shortcuts import get_object_or_404
 
 class ChatConsumerMes(AsyncWebsocketConsumer):
     async def connect(self):
@@ -68,13 +69,26 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
             
     @database_sync_to_async
     def save_message(self, chat_id, user, content):
-        chat = Chat.objects.get(id=chat_id)
+        chat = get_object_or_404(Chat, id=chat_id)
         return Message.objects.create(
             chat=chat, 
             sender=user, 
             content=content, 
             type='message'
         )
+        
+    async def message_updated(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "message.updated",
+            "data": event["data"]
+        }))
+    
+    async def message_deleted(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "message.deleted",
+            "data": event["data"]
+        }))
+
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):

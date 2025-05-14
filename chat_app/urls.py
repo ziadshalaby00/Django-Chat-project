@@ -35,4 +35,7 @@ urlpatterns = [
     path('chat/<int:chat_id>/messages/', MessageAPIView.as_view(), name='chat-messages'),
     path('messages/<int:chat_id>/upload-audio/', UploadAudioAPIView.as_view(), name='upload-audio'),
     path('messages/<int:chat_id>/upload-file/', UploadFileAPIView.as_view(), name='upload-file'),
+    
+    path('messages/<int:message_id>/update/', UpdateMessageAPIView.as_view(), name='update-message'),
+    path('messages/<int:message_id>/delete/', DeleteMessageAPIView.as_view(), name='delete-message'),
 ]
