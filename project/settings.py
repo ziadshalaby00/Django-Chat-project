@@ -37,6 +37,7 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
     "https://localhost:4200",
+    "https://projchating.netlify.app",
 ]
 
 HTTPONLY = True
