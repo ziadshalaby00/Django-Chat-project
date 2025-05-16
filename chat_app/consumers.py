@@ -5,6 +5,7 @@ from .models import Chat, Message
 from .serializers import *
 import json
 from django.shortcuts import get_object_or_404
+from asgiref.sync import sync_to_async
 
 class ChatConsumerMes(AsyncWebsocketConsumer):
     async def connect(self):
@@ -57,11 +58,12 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
         if text_data:
             data = json.loads(text_data)
             message = data.get('message', None)
+            reply_to = data.get('reply_to', None)
             if message:
-                obj = await self.save_message(self.chat_id, self.user, message)
+                obj = await self.save_message(self.chat_id, self.user, message, reply_to)
             
         if obj:
-            serialized_data = MessageSerializer(obj).data
+            serialized_data = await self.serialize_message(obj)
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -71,14 +73,21 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
             )
             
     @database_sync_to_async
-    def save_message(self, chat_id, user, content):
+    def save_message(self, chat_id, user, content, reply_to):
         chat = get_object_or_404(Chat, id=chat_id)
+        reply_to_obj = Message.objects.filter(id=reply_to).first()
+        
         return Message.objects.create(
             chat=chat, 
             sender=user, 
             content=content, 
-            type='message'
+            type='message',
+            reply_to=reply_to_obj,
         )
+        
+    @sync_to_async
+    def serialize_message(self, obj):
+        return MessageSerializer(obj).data
         
     async def message_updated(self, event):
         await self.send(text_data=json.dumps({

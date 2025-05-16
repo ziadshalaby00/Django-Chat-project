@@ -40,21 +40,39 @@ class Message(models.Model):
         ('audio', 'audio'),
         ('file', 'file')
     ], default='message')
-    
     content = models.TextField(blank=True, null=True)
-    audio_file = models.FileField(upload_to='audio', null=True, blank=True)
-    file = models.FileField(upload_to='file', null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+    reply_to = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='replies')
 
     def __str__(self):
         return f'{self.sender} sent: {self.type} --- {self.chat}'
+
+class AudioMessage(models.Model):
+    message = models.OneToOneField(Message, on_delete=models.CASCADE, related_name='audio')
+    audio_file = models.FileField(upload_to='audio', null=True, blank=True)
+    audio_duration = models.FloatField(null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.message} --- {self.message.id}'
     
-@receiver(post_delete, sender=Message)
-def delete_attached_files(sender, instance, **kwargs):
-    # حذف الملف الصوتي إن وجد
+class FileMessage(models.Model):
+    message = models.OneToOneField(Message, on_delete=models.CASCADE, related_name='file_data')
+    file = models.FileField(upload_to='file', null=True, blank=True)
+    file_name = models.CharField(max_length=255, null=True, blank=True)
+    file_size = models.PositiveIntegerField(null=True, blank=True)
+    file_type = models.CharField(max_length=255, null=True, blank=True)
+    
+    def __str__(self):
+        return f'{self.message} --- {self.message.id}'
+
+
+
+@receiver(post_delete, sender=AudioMessage)
+def delete_audio_file_on_delete(sender, instance, **kwargs):
     if instance.audio_file and instance.audio_file.path and os.path.isfile(instance.audio_file.path):
         os.remove(instance.audio_file.path)
 
-    # حذف الملف العام إن وجد
+@receiver(post_delete, sender=FileMessage)
+def delete_file_on_delete(sender, instance, **kwargs):
     if instance.file and instance.file.path and os.path.isfile(instance.file.path):
         os.remove(instance.file.path)

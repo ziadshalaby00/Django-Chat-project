@@ -22,7 +22,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 router = DefaultRouter()
 router.register(r'chats', ChatViewSet, basename='chat')
 
-urlpatterns = [
+urlpatterns: list = [
     *router.urls,
     
     path('signup/', SignupView.as_view(), name='signup'),
@@ -39,3 +39,5 @@ urlpatterns = [
     path('messages/<int:message_id>/update/', UpdateMessageAPIView.as_view(), name='update-message'),
     path('messages/<int:message_id>/delete/', DeleteMessageAPIView.as_view(), name='delete-message'),
 ]
+
+arr: list = 'ziad'

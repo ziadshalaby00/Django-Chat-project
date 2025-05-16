@@ -19,6 +19,9 @@ from django.db.models import Q
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.conf import settings
+
+import mimetypes
+from mutagen.mp3 import MP3
 # Create your views here.
 
 class getUser(APIView):
@@ -122,14 +125,29 @@ class UploadAudioAPIView(APIView):
         with open(output_path, "rb") as f:
             mp3_data = f.read()
 
+        reply_to_id = request.data.get('reply_to')
+        if reply_to_id:
+            reply_to_id = int(reply_to_id)
+        reply_to_obj = Message.objects.filter(id=reply_to_id).first()
+        
         message = Message.objects.create(
             chat=chat,
             sender=user,
-            type='audio'
+            type='audio',
+            reply_to=reply_to_obj,
         )
         
         filename = f"{user.id}_{chat.id}_{int(time.time())}.mp3"
-        message.audio_file.save(filename, ContentFile(mp3_data))
+        
+        audio = MP3(output_path)
+        duration = audio.info.length
+
+        # حفظ الملف داخل النموذج المرتبط
+        AudioMessage.objects.create(
+            message=message,
+            audio_file=ContentFile(mp3_data, name=filename),
+            audio_duration=duration
+        )
 
         os.remove(input_path)
         os.remove(output_path)
@@ -164,15 +182,37 @@ class UploadFileAPIView(APIView):
         if error:
             return Response({'error': error}, status=400)
 
+        reply_to_id = request.data.get('reply_to')
+        if reply_to_id:
+            reply_to_id = int(reply_to_id)
+        reply_to_obj = Message.objects.filter(id=reply_to_id).first()
+
         message = Message.objects.create(
             chat=chat,
             sender=user,
-            type='file'
+            type='file',
+            reply_to=reply_to_obj,
         )
 
         base, ext = os.path.splitext(uploaded_file.name)
         filename = f"{user.id}_{chat.id}_{int(time.time())}_{base}{ext}"
-        message.file.save(filename, uploaded_file)
+        file_size = uploaded_file.size
+
+        # طريقة 1: الحصول على نوع الملف من الامتداد (أكثر أمانًا وأبسط)
+        file_type, _ = mimetypes.guess_type(uploaded_file.name)
+
+        # إذا لم يتم تحديده، استخدم فقط الامتداد
+        if not file_type:
+            file_type = ext.lstrip('.')  # إزالة النقطة من الامتداد
+
+        # حفظ الملف في FileMessage
+        FileMessage.objects.create(
+            message=message,
+            file=uploaded_file,
+            file_name=filename,
+            file_size=file_size,
+            file_type=file_type,
+        )
 
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
@@ -218,7 +258,7 @@ class UpdateMessageAPIView(APIView):
 class DeleteMessageAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request, message_id):
+    def delete(self, request, message_id: int) -> Response:
         user = request.user
         message = get_object_or_404(Message, id=message_id, sender=user)
         chat_id = message.chat.id
@@ -244,7 +284,7 @@ class SignupView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        serializer = UserSerializer(data=request.data)
+        serializer = SignupSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
