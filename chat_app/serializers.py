@@ -34,12 +34,6 @@ class ChatSerializer(serializers.ModelSerializer):
     def get_user2_username(self, obj):
         return obj.user2.username if obj.user2 else None
 
-
-class ReplyMessageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Message
-        exclude = ['reply_to']
-
 class AudioMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = AudioMessage
@@ -49,6 +43,14 @@ class FileMessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = FileMessage
         fields = ['file', 'file_name', 'file_size', 'file_type']
+
+class ReplyMessageSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+    audio = AudioMessageSerializer(read_only=True)
+    file_data = FileMessageSerializer(read_only=True)
+    class Meta:
+        model = Message
+        exclude = ['reply_to']
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
@@ -62,5 +64,5 @@ class MessageSerializer(serializers.ModelSerializer):
 
     def get_reply_to(self, obj):
         if obj.reply_to:
-            return MessageSerializer(obj.reply_to).data
+            return ReplyMessageSerializer(obj.reply_to).data
         return None

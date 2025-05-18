@@ -55,7 +55,6 @@ class ChatViewSet(viewsets.ModelViewSet):
 
             channel_layer = get_channel_layer()
 
-            # إشعار للمستخدم الأول دائمًا
             async_to_sync(channel_layer.group_send)(
                 f"user_{chat.user1.id}",
                 {
@@ -64,7 +63,6 @@ class ChatViewSet(viewsets.ModelViewSet):
                 }
             )
 
-            # إشعار للمستخدم الثاني فقط إذا كان مختلفًا
             if chat.user1.id != chat.user2.id:
                 async_to_sync(channel_layer.group_send)(
                     f"user_{chat.user2.id}",
@@ -108,7 +106,6 @@ class UploadAudioAPIView(APIView):
 
         output_path = input_path.replace(".webm", ".mp3")
 
-
         result = subprocess.run([
             "ffmpeg", "-y",
             "-i", input_path,
@@ -121,14 +118,17 @@ class UploadAudioAPIView(APIView):
             os.remove(input_path)
             return Response({'error': 'Audio conversion failed'}, status=500)
 
-
         with open(output_path, "rb") as f:
             mp3_data = f.read()
 
         reply_to_id = request.data.get('reply_to')
-        if reply_to_id:
+        if reply_to_id and str(reply_to_id).isdigit():
             reply_to_id = int(reply_to_id)
-        reply_to_obj = Message.objects.filter(id=reply_to_id).first()
+            reply_to_obj = Message.objects.filter(id=reply_to_id).first()
+            if reply_to_obj and reply_to_obj.chat_id != chat.id:
+                return Response({'error': 'Invalid reply target.'}, status=400)
+        else:
+            reply_to_obj = None
         
         message = Message.objects.create(
             chat=chat,
@@ -142,7 +142,6 @@ class UploadAudioAPIView(APIView):
         audio = MP3(output_path)
         duration = audio.info.length
 
-        # حفظ الملف داخل النموذج المرتبط
         AudioMessage.objects.create(
             message=message,
             audio_file=ContentFile(mp3_data, name=filename),
@@ -183,9 +182,13 @@ class UploadFileAPIView(APIView):
             return Response({'error': error}, status=400)
 
         reply_to_id = request.data.get('reply_to')
-        if reply_to_id:
+        if reply_to_id and str(reply_to_id).isdigit():
             reply_to_id = int(reply_to_id)
-        reply_to_obj = Message.objects.filter(id=reply_to_id).first()
+            reply_to_obj = Message.objects.filter(id=reply_to_id).first()
+            if reply_to_obj and reply_to_obj.chat_id != chat.id:
+                return Response({'error': 'Invalid reply target.'}, status=400)
+        else:
+            reply_to_obj = None
 
         message = Message.objects.create(
             chat=chat,
@@ -208,7 +211,7 @@ class UploadFileAPIView(APIView):
         # حفظ الملف في FileMessage
         FileMessage.objects.create(
             message=message,
-            file=uploaded_file,
+            file=ContentFile(file_bytes, name=filename),
             file_name=filename,
             file_size=file_size,
             file_type=file_type,

@@ -11,14 +11,11 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
     async def connect(self):
         self.chat_id = self.scope['url_route']['kwargs']['chat_id']
         self.user = self.scope["user"]
-        self.type = None
-        self.file_name = None
         
         if self.user is None or self.user.is_anonymous:
             await self.close()
             return
 
-        # تحقق أن المستخدم جزء من المحادثة
         if not await self.is_user_in_chat(self.chat_id, self.user):
             await self.close()
             return
@@ -52,15 +49,18 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
         except Chat.DoesNotExist:
             return False
         
-    async def receive(self, text_data=None, bytes_data=None):
+    async def receive(self, text_data=None):
         obj = None
 
         if text_data:
             data = json.loads(text_data)
             message = data.get('message', None)
             reply_to = data.get('reply_to', None)
-            if message:
-                obj = await self.save_message(self.chat_id, self.user, message, reply_to)
+            
+            if not message or not message.strip():
+                return
+            
+            obj = await self.save_message(self.chat_id, self.user, message, reply_to)
             
         if obj:
             serialized_data = await self.serialize_message(obj)
@@ -73,9 +73,19 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
             )
             
     @database_sync_to_async
-    def save_message(self, chat_id, user, content, reply_to):
-        chat = get_object_or_404(Chat, id=chat_id)
-        reply_to_obj = Message.objects.filter(id=reply_to).first()
+    def save_message(self, chat_id, user, content, reply_to_id):
+        try:
+            chat = Chat.objects.get(id=chat_id)
+        except Chat.DoesNotExist:
+            return None
+        
+        if reply_to_id and str(reply_to_id).isdigit():
+            reply_to_id = int(reply_to_id)
+            reply_to_obj = Message.objects.filter(id=reply_to_id).first()
+            if reply_to_obj and reply_to_obj.chat_id != chat.id:
+                return None
+        else:
+            reply_to_obj = None
         
         return Message.objects.create(
             chat=chat, 
@@ -118,7 +128,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
         await self.accept()
 
-        # إرسال المحادثات الخاصة بالمستخدم
         chats = await self.get_user_chats()
         await self.send(text_data=json.dumps({
             'type': 'initial_chats',
@@ -148,5 +157,4 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def get_user_chats(self):
         chats = (Chat.objects.filter(user1=self.user) | Chat.objects.filter(user2=self.user)).order_by('-created_at')
         serializer = ChatSerializer(chats, many=True)
-        print(serializer.data)
         return serializer.data
