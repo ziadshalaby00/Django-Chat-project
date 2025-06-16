@@ -46,9 +46,14 @@ class ChatViewSet(viewsets.ModelViewSet):
         user = self.request.user
         return Chat.objects.filter(user1=user) | Chat.objects.filter(user2=user)
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer_data = [self.get_serializer(chat, context={'user': request.user}).data for chat in queryset]
+        return Response(serializer_data)
+
     def create(self, request, *args, **kwargs):
         request.data["user1"] = request.user.id
-        chat_seri = self.get_serializer(data=request.data)
+        chat_seri = self.get_serializer(data=request.data, context={'user': request.user})
 
         if chat_seri.is_valid():
             chat = chat_seri.save()
@@ -151,17 +156,27 @@ class UploadAudioAPIView(APIView):
         os.remove(input_path)
         os.remove(output_path)
 
+        message_data = MessageSerializer(message).data
+
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"chat_{chat_id}",
             {
                 "type": "chat_message",
-                "data": MessageSerializer(message).data
+                "data": message_data
             }
         )
         
-        return Response(MessageSerializer(message).data, status=201)
-
+        receiver = message.chat.user1 if message.sender != message.chat.user1 else message.chat.user2
+        async_to_sync(channel_layer.group_send)(
+            f"user_{receiver.id}", 
+            {
+                'type': 'new_message_notification',
+                'message': message_data
+            }
+        )
+        
+        return Response(message_data, status=201)
 
 class UploadFileAPIView(APIView):
     def post(self, request, chat_id):
@@ -217,17 +232,27 @@ class UploadFileAPIView(APIView):
             file_type=file_type,
         )
 
+        message_data = MessageSerializer(message).data
+
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"chat_{chat_id}",
             {
                 "type": "chat_message",
-                "data": MessageSerializer(message).data
+                "data": message_data
             }
         )
         
-        return Response(MessageSerializer(message).data, status=201)
-    
+        receiver = message.chat.user1 if message.sender != message.chat.user1 else message.chat.user2
+        async_to_sync(channel_layer.group_send)(
+            f"user_{receiver.id}", 
+            {
+                'type': 'new_message_notification',
+                'message': message_data
+            }
+        )
+        
+        return Response(message_data, status=201)
     
 class UpdateMessageAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -292,7 +317,6 @@ class SignupView(APIView):
             serializer.save()
             return Response({'message': 'User created successfully'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
@@ -369,3 +393,26 @@ class logout(APIView):
             path=settings.PATH,
         )
         return response
+
+# * ##################################################################################
+
+class ChatNotificationsView(APIView):
+    def post(self, request, chat_id):
+        user = request.user
+        chat = get_object_or_404(Chat, id=chat_id)
+
+        if chat.user1 != user and chat.user2 != user:
+            return Response({'detail': 'Access denied.'}, status=403)
+
+        Message.objects.filter(chat=chat, isRead=False).exclude(sender=user).update(isRead=True)
+        return Response({'detail': 'Messages marked as read.'}, status=200)
+
+
+class getUsers(APIView):
+    def get(self, request):
+        users = User.objects.all()
+        allUser = UserSerializer(users, many=True)
+        
+        return Response({
+            "users": allUser.data
+        })

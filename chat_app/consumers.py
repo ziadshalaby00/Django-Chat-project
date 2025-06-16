@@ -6,6 +6,8 @@ from .serializers import *
 import json
 from django.shortcuts import get_object_or_404
 from asgiref.sync import sync_to_async
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 class ChatConsumerMes(AsyncWebsocketConsumer):
     async def connect(self):
@@ -71,7 +73,27 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
                     'data': serialized_data,
                 }
             )
-            
+        
+        channel_layer = get_channel_layer()
+        receiver = await self.get_receiver(obj)
+        await channel_layer.group_send(
+            f"user_{receiver.id}", 
+            {
+                'type': 'new_message_notification',
+                'message': serialized_data
+            }
+        )
+
+    @database_sync_to_async
+    def get_receiver(self, obj):
+        chat = obj.chat
+        sender = obj.sender
+
+        user1 = chat.user1
+        user2 = chat.user2
+
+        return user2 if sender == user1 else user1
+
     @database_sync_to_async
     def save_message(self, chat_id, user, content, reply_to_id):
         try:
@@ -95,7 +117,7 @@ class ChatConsumerMes(AsyncWebsocketConsumer):
             reply_to=reply_to_obj,
         )
         
-    @sync_to_async
+    @database_sync_to_async
     def serialize_message(self, obj):
         return MessageSerializer(obj).data
         
@@ -152,9 +174,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'type': 'chat_created',
             'chat': chat
         }))
+    
+    async def new_message_notification(self, event):
+        message_data = event['message']
+
+        await self.send(text_data=json.dumps({
+            'type': 'new_message_notification',
+            'message': message_data
+        }))
 
     @database_sync_to_async
     def get_user_chats(self):
         chats = (Chat.objects.filter(user1=self.user) | Chat.objects.filter(user2=self.user)).order_by('-created_at')
-        serializer = ChatSerializer(chats, many=True)
-        return serializer.data
+        serializer_data = [ChatSerializer(chat, context={'user': self.user}).data for chat in chats]
+        return serializer_data

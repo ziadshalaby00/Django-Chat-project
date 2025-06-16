@@ -21,18 +21,16 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ChatSerializer(serializers.ModelSerializer):
-    user1_username = serializers.SerializerMethodField()
-    user2_username = serializers.SerializerMethodField()
+    user1_info = UserSerializer(source='user1', read_only=True)
+    user2_info = UserSerializer(source='user2', read_only=True)
+    unread_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Chat
-        fields = '__all__'
+        fields = "__all__"
 
-    def get_user1_username(self, obj):
-        return obj.user1.username if obj.user1 else None
-
-    def get_user2_username(self, obj):
-        return obj.user2.username if obj.user2 else None
+    def get_unread_count(self, obj):
+        return obj.messages.filter(isRead=False).exclude(sender=self.context.get('user')).count()
 
 class AudioMessageSerializer(serializers.ModelSerializer):
     class Meta:

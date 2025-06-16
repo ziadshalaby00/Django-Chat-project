@@ -38,6 +38,10 @@ urlpatterns: list = [
     
     path('messages/<int:message_id>/update/', UpdateMessageAPIView.as_view(), name='update-message'),
     path('messages/<int:message_id>/delete/', DeleteMessageAPIView.as_view(), name='delete-message'),
+    
+    path('markisread/<int:chat_id>/', ChatNotificationsView.as_view(), name='chat-notifications'),
+    
+    # path('getUsers/', getUsers.as_view(), name='getUsers'),
 ]
 
 arr: list = 'ziad'
