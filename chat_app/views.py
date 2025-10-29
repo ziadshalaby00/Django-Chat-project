@@ -187,11 +187,9 @@ class UploadFileAPIView(APIView):
         if not uploaded_file:
             return Response({'error': 'No file uploaded'}, status=400)
 
-        # اقرأ الملف على شكل bytes للتحقق من حجمه ونوعه
         file_bytes = uploaded_file.read()
-        uploaded_file.seek(0)  # ← لإرجاع المؤشر كي لا يفقد الملف لاحقًا
+        uploaded_file.seek(0)
 
-        # تحقق من الحجم والنوع
         error = validate_file_upload(file_bytes)
         if error:
             return Response({'error': error}, status=400)
@@ -216,14 +214,11 @@ class UploadFileAPIView(APIView):
         filename = f"{user.id}_{chat.id}_{int(time.time())}_{base}{ext}"
         file_size = uploaded_file.size
 
-        # طريقة 1: الحصول على نوع الملف من الامتداد (أكثر أمانًا وأبسط)
         file_type, _ = mimetypes.guess_type(uploaded_file.name)
 
-        # إذا لم يتم تحديده، استخدم فقط الامتداد
         if not file_type:
-            file_type = ext.lstrip('.')  # إزالة النقطة من الامتداد
+            file_type = ext.lstrip('.')
 
-        # حفظ الملف في FileMessage
         FileMessage.objects.create(
             message=message,
             file=ContentFile(file_bytes, name=filename),
@@ -271,7 +266,6 @@ class UpdateMessageAPIView(APIView):
         message.content = new_content
         message.save()
 
-        # إرسال إشعار عبر WebSocket
         channel_layer = get_channel_layer()
         async_to_sync(channel_layer.group_send)(
             f"chat_{message.chat.id}",
@@ -355,7 +349,6 @@ class CustomTokenRefreshView(TokenRefreshView):
 
         access_token = serializer.validated_data.get('access')
 
-        # توليد refresh جديد يدويًا:
         old_refresh = RefreshToken(refresh_token)
         user_id = old_refresh["user_id"]
         try:

@@ -35,7 +35,6 @@ def validate_file_upload(bytes_data: bytes) -> str | None:
     if len(bytes_data) > MAX_FILE_SIZE:
         return "File too large (max 50MB)"
     
-    # تحقق من نوع الملف الحقيقي
     mime = magic.Magic(mime=True)
     file_mime_type = mime.from_buffer(bytes_data)
 

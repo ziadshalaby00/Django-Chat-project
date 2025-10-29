@@ -3,7 +3,7 @@ from .models import *
 
 # Register your models here.
 class MessageAdmin(admin.ModelAdmin):
-    list_filter = ['type', 'chat']  # فلترة حسب النوع
+    list_filter = ['type', 'chat']
     search_fields = ['id']
 
 admin.site.register(Chat)
