@@ -1,5 +1,4 @@
 from django.db import models
-from django.forms import ValidationError
 
 # Create your models here.
 from django.contrib.auth import get_user_model

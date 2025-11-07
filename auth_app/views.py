@@ -52,6 +52,7 @@ class RegisterView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CookieTokenObtainPairView(TokenObtainPairView): # Login
+    permission_classes = [AllowAny]
     serializer_class = TokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
@@ -72,6 +73,7 @@ class CookieTokenObtainPairView(TokenObtainPairView): # Login
         return res
     
 class CookieTokenRefreshView(TokenRefreshView): # Refresh
+    permission_classes = [AllowAny]
     serializer_class = TokenRefreshSerializer
 
     def post(self, request, *args, **kwargs):
@@ -94,6 +96,7 @@ class CookieTokenRefreshView(TokenRefreshView): # Refresh
         return res
 
 class CookieTokenVerifyView(TokenVerifyView): # Verfivy Token
+    permission_classes = [AllowAny]
     serializer_class = TokenVerifySerializer
 
     def post(self, request, *args, **kwargs):
@@ -125,6 +128,8 @@ class CookieTokenVerifyView(TokenVerifyView): # Verfivy Token
             )
 
 class GoogleLoginView(APIView): # Google Login
+    permission_classes = [AllowAny]
+    
     def post(self, request):
         code = request.data.get("code")
         if not code:
@@ -180,6 +185,8 @@ class GoogleLoginView(APIView): # Google Login
             return Response({"error": "Invalid Google token"}, status=400)
 
 class SendPasswordResetLinkView(APIView): # Forgot Password
+    permission_classes = [AllowAny]
+    
     def post(self, request):
         serializer = SendPasswordResetLinkSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -201,6 +208,8 @@ class SendPasswordResetLinkView(APIView): # Forgot Password
         return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
 
 class PasswordResetConfirmView(APIView): # Reset Password
+    permission_classes = [AllowAny]
+    
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -217,6 +226,8 @@ class UserUpdateView(APIView): # Update User
         return Response({"message": "User updated successfully"}, status=status.HTTP_200_OK)
 
 class LogoutView(APIView): # Logut
+    permission_classes = [AllowAny]
+    
     def post(self, request):
         response = Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
         

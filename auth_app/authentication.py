@@ -1,8 +1,13 @@
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from django.middleware.csrf import CsrfViewMiddleware
+from django.http import JsonResponse
+from django.conf import settings
+import re
 
 class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
         access_token = request.COOKIES.get("access")
+        
         if not access_token:
             return None
 
@@ -24,11 +29,6 @@ REST_FRAMEWORK = {
 # ======================================================================
 # ======================================================================
 
-# auth_app/authentication.py
-from django.middleware.csrf import CsrfViewMiddleware
-from rest_framework.exceptions import PermissionDenied
-from django.conf import settings
-
 class CSRFMiddlewareWithJWT:
     """
     Middleware to enforce CSRF validation for POST/PUT/PATCH/DELETE requests
@@ -42,7 +42,7 @@ class CSRFMiddlewareWithJWT:
         path = request.path
         
         for pattern in self.exempt_patterns:
-            if pattern.fullmatch(path):
+            if re.fullmatch(pattern, path):
                 return None
         
         if request.method not in ("GET", "HEAD", "OPTIONS", "TRACE"):
@@ -53,7 +53,10 @@ class CSRFMiddlewareWithJWT:
                 callback_kwargs={}
             )
             if reason:
-                raise PermissionDenied("CSRF Verification Failed")
+                return JsonResponse({
+                    "error": "csrf_failed",
+                    "message": "CSRF verification failed."
+                }, status=401)
 
         return None
 

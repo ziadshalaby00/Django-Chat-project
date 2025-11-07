@@ -20,12 +20,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
         await self.accept()
 
-        chats = await self.get_user_chats()
-        await self.send_json({
-            'type': 'initial_chats',
-            'chats': chats
-        })
-
     async def disconnect(self, close_code):
         try:
             await self.channel_layer.group_discard(
@@ -40,7 +34,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
     async def chat_created(self, event):
         chat = event['chat']
-        print(chat)
 
         if self.user.id not in (chat['user1_info']['id'], chat['user2_info']['id']):
             return
@@ -50,18 +43,13 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'chat': chat
         })
     
-    async def new_message_notification(self, event):
-        message_data = event['message']
+    async def chat_deleted(self, event):
+        chat_id = event["chat_id"]
 
         await self.send_json({
-            'type': 'new_message_notification',
-            'message': message_data
+            "type": "chat_deleted",
+            "chat_id": chat_id
         })
-
-    @database_sync_to_async
-    def get_user_chats(self):
-        chats = Chat.objects.filter(
-            Q(user1=self.user) | Q(user2=self.user)
-        ).select_related("user1", "user2").order_by('-created_at')
-
-        return [ChatSerializer(chat, context={'user': self.user}).data for chat in chats]
+    
+    async def new_message_notification(self, event):
+        await self.send_json({ 'type': 'new_message_notification' })

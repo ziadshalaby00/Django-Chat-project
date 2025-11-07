@@ -13,11 +13,13 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from .websocke_auth import CookieJWTAuthWebSocket
 
 from chat.routing import websocket_urlpatterns as chat_ws
+from message.routing import websocket_urlpatterns as chat_mes_ws
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'socketdevto.settings')
 
 combined_websocket_routes = [
     *chat_ws,
+    *chat_mes_ws,
 ]
 
 application = ProtocolTypeRouter({

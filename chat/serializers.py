@@ -1,13 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Chat
+from auth_app.serializers import ChatUserSerializer
 
 User = get_user_model()
-
-class ChatUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ['id', 'username']
 
 
 class ChatSerializer(serializers.ModelSerializer):
@@ -38,6 +34,4 @@ class ChatSerializer(serializers.ModelSerializer):
             return 0
 
         user = request.user
-        
-        # return obj.messages.filter(isRead=False).exclude(sender=user).count()
-        return 0
+        return obj.messages.filter(isRead=False).exclude(sender=user).count()

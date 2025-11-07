@@ -23,6 +23,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('auth_app.urls')),
     path('api/chat/', include('chat.urls')),
+    path('api/message/', include('message.urls')),
+    path('api/audio_message/', include('audio_message.urls')),
+    path('api/file_message/', include('file_message.urls')),
+    path('api/text_message/', include('text_message.urls')),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
