@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from message.models import Message
 
 from .models import Chat
-from .serializers import ChatSerializer
+from .serializers import ChatSerializer, UserByUsernameSerializer
 
 User = get_user_model()
 
@@ -128,3 +128,25 @@ class MarkChatReadApiView(APIView):
 
         Message.objects.filter(chat=chat, isRead=False).exclude(sender=user).update(isRead=True)
         return Response({'detail': 'Messages marked as read.'}, status=status.HTTP_200_OK)
+
+class GetUserByUsername(APIView):
+    def get(self, request):
+        username = request.query_params.get('username', '').strip()
+
+        if not username:
+            return Response({
+                'detail': 'Username is required.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.get(username=username)
+            data = UserByUsernameSerializer(user).data
+
+        except User.DoesNotExist:
+            return Response({
+                "detail": "User not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({
+            "user": data
+        }, status=status.HTTP_200_OK)

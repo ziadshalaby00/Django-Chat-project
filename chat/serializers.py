@@ -35,3 +35,12 @@ class ChatSerializer(serializers.ModelSerializer):
 
         user = request.user
         return obj.messages.filter(isRead=False).exclude(sender=user).count()
+
+class UserByUsernameSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'fullname',
+            'username',
+        ]

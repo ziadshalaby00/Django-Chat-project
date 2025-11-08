@@ -18,9 +18,7 @@ class CookieJWTAuthentication(JWTAuthentication):
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        ...,
         "auth_app.authentication.CookieJWTAuthentication",
-        ...
     )
 }
 
