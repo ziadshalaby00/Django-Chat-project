@@ -30,6 +30,8 @@ from .utilities import clear_auth_cookies, set_jwt_cookie, specific_send_mail
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserUpdateSerializer
 
+from django.core.files.base import ContentFile
+
 # views.py
 from rest_framework.decorators import api_view
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -164,11 +166,22 @@ class GoogleLoginView(APIView): # Google Login
             email = idinfo.get("email")
             fullname = idinfo.get("name")
             username = email.split("@")[0]
+            picture_url = idinfo.get("picture")
 
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={"username": username, "fullname": fullname},
             )
+            
+            if created and picture_url:
+                img_response = requests.get(picture_url)
+                if img_response.status_code == 200:
+                    user.user_image.save(
+                        f"",
+                        ContentFile(img_response.content),
+                        save=True
+                    )
+
                 
             refresh = RefreshToken.for_user(user)
             response = Response(

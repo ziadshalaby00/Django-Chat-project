@@ -10,7 +10,7 @@ class CustomUserAdmin(UserAdmin):
     # نعدل على fieldsets بالكامل بدل + 
     fieldsets = (
         (None, {"fields": ("username", "password")}),
-        ("Personal info", {"fields": ("fullname", "email", "first_name", "last_name")}),
+        ("Personal info", {"fields": ("fullname", "email", "first_name", "last_name", "user_image")}),
         ("Permissions", {"fields": ("is_active", "is_staff", "is_superuser", "groups", "user_permissions")}),
         ("Important dates", {"fields": ("last_login", "date_joined")}),
     )
@@ -18,7 +18,7 @@ class CustomUserAdmin(UserAdmin):
     add_fieldsets = (
         (None, {
             "classes": ("wide",),
-            "fields": ("username", "fullname", "email", "password1", "password2"),
+            "fields": ("username", "fullname", "email", "password1", "password2", "user_image"),
         }),
     )
 

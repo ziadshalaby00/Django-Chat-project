@@ -10,6 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             "id", "fullname", "username", "email",
             "date_joined", "is_active", "last_login",
+            "user_image"
         ]
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -70,7 +71,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["username", "fullname", "email", "password", "old_password"]
+        fields = ["username", "fullname", "email", "password", "old_password", "user_image"]
 
     def validate(self, attrs):
         # لو المستخدم عايز يغير الباسوورد
