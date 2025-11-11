@@ -22,7 +22,7 @@ class CustomUserAdmin(UserAdmin):
         }),
     )
 
-    list_display = ["username", "email", "fullname", "is_staff", "is_active"]
+    list_display = ["id", "username", "email", "fullname", "is_staff", "is_active"]
 
 
 

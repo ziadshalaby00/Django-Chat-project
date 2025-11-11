@@ -105,3 +105,12 @@ class ChatUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'fullname', 'username']
+
+
+class OtherUsersSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id", "fullname", "username",
+            "date_joined", "user_image"
+        ]

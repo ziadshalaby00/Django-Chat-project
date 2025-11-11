@@ -11,6 +11,7 @@ from .views import (
     LogoutView,
     DeleteUserView,
     UserProfileView,
+    OtherUsersProfileView,
     get_csrf,
 )
 
@@ -33,6 +34,7 @@ urlpatterns = [
     path("get_csrf/", get_csrf, name="get_csrf"),
 
     path("me/", UserProfileView.as_view(), name="user-profile"),
+    path("users-profile/<int:id>/", OtherUsersProfileView.as_view(), name="users-profile"),
     path("delete-user/", DeleteUserView.as_view(), name="delete_user"),
 ]
 

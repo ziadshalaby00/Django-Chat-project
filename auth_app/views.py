@@ -6,7 +6,7 @@ from rest_framework.permissions import AllowAny
 from django.conf import settings
 from rest_framework.generics import RetrieveAPIView
 
-from .serializers import UserRegisterSerializer, UserSerializer
+from .serializers import UserRegisterSerializer, UserSerializer, OtherUsersSerializer
 
 import requests
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -273,6 +273,24 @@ class UserProfileView(RetrieveAPIView): # Me
 
     def get_object(self):
         return self.request.user
+
+class OtherUsersProfileView(APIView):
+    """
+    Return another user's public profile by ID
+    """
+
+    def get(self, request, id):
+        try:
+            user = User.objects.get(id=id)
+        except User.DoesNotExist:
+            return  Response({
+                "detail": "User not found."
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        user_profile = OtherUsersSerializer(user, context={"request": request}).data
+        return Response({
+            "user_profile": user_profile
+        }, status=status.HTTP_200_OK)
 
 @api_view(["GET"])
 @ensure_csrf_cookie
