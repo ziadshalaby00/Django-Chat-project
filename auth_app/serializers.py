@@ -8,9 +8,8 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "fullname", "username", "email",
-            "date_joined", "is_active", "last_login",
-            "user_image"
+            "id", "fullname", "username", "email", "bio", "user_image",
+            "date_joined", "last_login", "is_active"
         ]
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -27,8 +26,6 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         validated_data["password"] = make_password(validated_data["password"])
         return super().create(validated_data)
 
-
-
 class SendPasswordResetLinkSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
@@ -36,7 +33,6 @@ class SendPasswordResetLinkSerializer(serializers.Serializer):
         if not User.objects.filter(email=value).exists():
             raise serializers.ValidationError("User with this email does not exist.")
         return value
-
 
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
@@ -64,14 +60,13 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         self.user.save()
         return self.user
 
-
 class UserUpdateSerializer(serializers.ModelSerializer):
     old_password = serializers.CharField(write_only=True, required=False)
     password = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = User
-        fields = ["username", "fullname", "email", "password", "old_password", "user_image"]
+        fields = ["username", "fullname", "email", "password", "old_password", "user_image", "bio"]
 
     def validate(self, attrs):
         # لو المستخدم عايز يغير الباسوورد
@@ -106,11 +101,10 @@ class ChatUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'fullname', 'username']
 
-
 class OtherUsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "fullname", "username",
-            "date_joined", "user_image"
+            "id", "fullname", "username", "bio", "user_image",
+            "date_joined"
         ]

@@ -25,7 +25,7 @@ from .serializers import SendPasswordResetLinkSerializer, PasswordResetConfirmSe
 from django.utils.http import urlsafe_base64_encode
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
-from .utilities import clear_auth_cookies, set_jwt_cookie, specific_send_mail
+from .utilities import clear_auth_cookies, set_jwt_cookie, specific_send_mail, update_user_login
 
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserUpdateSerializer
@@ -37,6 +37,7 @@ from rest_framework.decorators import api_view
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from django.contrib.auth import get_user_model
+
 User = get_user_model()
 
 
@@ -65,6 +66,7 @@ class CookieTokenObtainPairView(TokenObtainPairView): # Login
         refresh = data.get("refresh")
 
         res = Response({"message": "Loggedin successfully"})
+        update_user_login(request.user)
 
         if access:
             res = set_jwt_cookie(res, "access", access, settings.ACCESS_MAX_AGE)
@@ -177,12 +179,14 @@ class GoogleLoginView(APIView): # Google Login
                 img_response = requests.get(picture_url)
                 if img_response.status_code == 200:
                     user.user_image.save(
-                        f"",
+                        f"temp.jpg",
                         ContentFile(img_response.content),
                         save=True
                     )
 
-                
+            if not created:
+                update_user_login(user)
+            
             refresh = RefreshToken.for_user(user)
             response = Response(
                 {"message": "Successfully logged in with Google"},
@@ -236,9 +240,14 @@ class UserUpdateView(APIView): # Update User
         serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({"message": "User updated successfully"}, status=status.HTTP_200_OK)
+        user = UserSerializer(request.user, context={"request": request}).data
+        return Response({
+            "message": "User updated successfully",
+            "user": user
+        }, status=status.HTTP_200_OK)
 
 class LogoutView(APIView): # Logut
+    authentication_classes = []
     permission_classes = [AllowAny]
     
     def post(self, request):
