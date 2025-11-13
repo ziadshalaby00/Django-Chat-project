@@ -14,7 +14,7 @@ class User(AbstractUser):
     fullname = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
     user_image = models.ImageField(upload_to=user_image_upload_path, null=True, blank=True)
-    bio = models.CharField(max_length=450, default='Good talks make good days.')
+    bio = models.CharField(max_length=450, default='Good talks make good days.', null=True, blank=True)
 
     def __str__(self):
         return self.username

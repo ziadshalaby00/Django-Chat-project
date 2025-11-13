@@ -25,7 +25,12 @@ from .serializers import SendPasswordResetLinkSerializer, PasswordResetConfirmSe
 from django.utils.http import urlsafe_base64_encode
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
-from .utilities import clear_auth_cookies, set_jwt_cookie, specific_send_mail, update_user_login
+from .utilities import (
+    clear_auth_cookies, set_jwt_cookie, 
+    specific_send_mail, 
+    update_user_login,
+    get_user_from_access_token
+)
 
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserUpdateSerializer
@@ -66,7 +71,9 @@ class CookieTokenObtainPairView(TokenObtainPairView): # Login
         refresh = data.get("refresh")
 
         res = Response({"message": "Loggedin successfully"})
-        update_user_login(request.user)
+        
+        user = get_user_from_access_token(access)
+        update_user_login(user)
 
         if access:
             res = set_jwt_cookie(res, "access", access, settings.ACCESS_MAX_AGE)
@@ -236,7 +243,7 @@ class PasswordResetConfirmView(APIView): # Reset Password
 class UserUpdateView(APIView): # Update User
     permission_classes = [IsAuthenticated]
 
-    def put(self, request):
+    def patch(self, request):
         serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -284,6 +291,7 @@ class UserProfileView(RetrieveAPIView): # Me
         return self.request.user
 
 class OtherUsersProfileView(APIView):
+    permission_classes = [AllowAny]
     """
     Return another user's public profile by ID
     """
@@ -301,10 +309,32 @@ class OtherUsersProfileView(APIView):
             "user_profile": user_profile
         }, status=status.HTTP_200_OK)
 
+from rest_framework.decorators import permission_classes, authentication_classes
+
 @api_view(["GET"])
 @ensure_csrf_cookie
+@authentication_classes([])
+@permission_classes([AllowAny])
 def get_csrf(request): # Csrf Token
     """
     Call this once on app load to ensure csrftoken cookie is set.
     """
     return Response({"detail": "CSRF cookie set"})
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_user_image(request):
+    user = request.user
+
+    if user.user_image:
+        user.user_image.delete(save=False)
+        user.user_image = None
+        user.save(update_fields=["user_image"])
+
+        return Response({
+            "message": "User image deleted successfully"
+        }, status=status.HTTP_200_OK)
+
+    return Response({
+        "message": "User image already deleted or not set"
+    }, status=status.HTTP_200_OK)

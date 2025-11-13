@@ -13,6 +13,7 @@ from .views import (
     UserProfileView,
     OtherUsersProfileView,
     get_csrf,
+    delete_user_image
 )
 
 urlpatterns = [
@@ -33,6 +34,8 @@ urlpatterns = [
     path("users-profile/<int:id>/", OtherUsersProfileView.as_view(), name="users-profile"),
     
     path("update-profile/", UserUpdateView.as_view(), name="update_profile"),
+    path("delete-user-image/", delete_user_image, name="delete_user_image"),
+    
     path("delete-user/", DeleteUserView.as_view(), name="delete_user"),
 ]
 

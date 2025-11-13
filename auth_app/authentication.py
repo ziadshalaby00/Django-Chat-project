@@ -7,7 +7,6 @@ import re
 class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
         access_token = request.COOKIES.get("access")
-        
         if not access_token:
             return None
 
@@ -38,6 +37,7 @@ class CSRFMiddlewareWithJWT:
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         path = request.path
+        print(path)
         
         for pattern in self.exempt_patterns:
             if re.fullmatch(pattern, path):
@@ -51,6 +51,7 @@ class CSRFMiddlewareWithJWT:
                 callback_kwargs={}
             )
             if reason:
+                print(reason)
                 return JsonResponse({
                     "error": "csrf_failed",
                     "message": "CSRF verification failed."
