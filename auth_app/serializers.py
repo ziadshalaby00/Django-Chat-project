@@ -23,6 +23,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
+        print(validated_data.items())
         validated_data["password"] = make_password(validated_data["password"])
         return super().create(validated_data)
 
@@ -88,6 +89,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password", None)
         if password:
             instance.set_password(password)
+
+        print(validated_data.items())
 
         # تحديث باقي البيانات
         for attr, value in validated_data.items():
