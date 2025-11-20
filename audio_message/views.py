@@ -14,6 +14,11 @@ from asgiref.sync import async_to_sync
 from django.db import transaction
 from chat.models import Chat
 from rest_framework import status
+from message.utils import (
+    can_send_message, 
+    get_reply_to_message,
+    send_new_message_notification
+)
 
 class UploadAudioAPIView(APIView):
     def post(self, request, chat_id):
@@ -23,8 +28,12 @@ class UploadAudioAPIView(APIView):
             Chat, 
             Q(id=chat_id) & (Q(user1=user) | Q(user2=user))
         )
-        raw_audio = request.FILES.get('audio')
+        
+        allowed, reason = can_send_message(user, chat)
+        if not allowed:
+            return Response({"detail": reason}, status=400)
 
+        raw_audio = request.FILES.get('audio')
         if not raw_audio:
             return Response({"detail": "Audio file is required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -62,16 +71,8 @@ class UploadAudioAPIView(APIView):
             duration = mp3_info.info.length
 
             with transaction.atomic():
-
-                reply_to_obj = None
                 reply_to_id = request.data.get("reply_to")
-
-                if reply_to_id:
-                    reply_to_obj = get_object_or_404(
-                        Message,
-                        id=reply_to_id,
-                        chat=chat
-                    )
+                reply_to_obj = get_reply_to_message(chat, reply_to_id)
 
                 message = Message.objects.create(
                     chat=chat,
@@ -95,22 +96,5 @@ class UploadAudioAPIView(APIView):
             if os.path.exists(temp_output_path):
                 os.remove(temp_output_path)
 
-        message_data = MessageSerializer(message).data
-
-        channel_layer = get_channel_layer()
-
-        async_to_sync(channel_layer.group_send)(
-            f"chat_{chat_id}",
-            {
-                "type": "send_message",
-                "message_data": message_data
-            }
-        )
-
-        receiver = chat.user2 if user == chat.user1 else chat.user1
-        async_to_sync(channel_layer.group_send)(
-            f"user_{receiver.id}",
-            { "type": "new_message_notification" }
-        )
-
+        message_data = send_new_message_notification(message)
         return Response(message_data, status=status.HTTP_201_CREATED)

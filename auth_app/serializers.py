@@ -102,7 +102,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 class ChatUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'fullname', 'username']
+        fields = ['id', 'fullname', 'username', 'is_active']
 
 class OtherUsersSerializer(serializers.ModelSerializer):
     class Meta:

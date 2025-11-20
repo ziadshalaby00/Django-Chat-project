@@ -1,7 +1,4 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
-from channels.db import database_sync_to_async
-from .models import Chat
-from .serializers import ChatSerializer
 from django.db.models import Q
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
@@ -41,14 +38,6 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({
             'type': 'chat_created',
             'chat': chat
-        })
-    
-    async def chat_deleted(self, event):
-        chat_id = event["chat_id"]
-
-        await self.send_json({
-            "type": "chat_deleted",
-            "chat_id": chat_id
         })
     
     async def new_message_notification(self, event):

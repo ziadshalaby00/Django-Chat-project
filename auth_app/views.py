@@ -41,6 +41,8 @@ from django.core.files.base import ContentFile
 from rest_framework.decorators import api_view
 from django.views.decorators.csrf import ensure_csrf_cookie
 
+from chat.models import Chat
+
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -263,7 +265,7 @@ class LogoutView(APIView): # Logut
         response = clear_auth_cookies(response)
         return response
 
-class DeleteUserView(APIView): # Delete User
+class DeleteUserView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request):
@@ -276,8 +278,27 @@ class DeleteUserView(APIView): # Delete User
         if not user.check_password(password):
             return Response({"error": "Incorrect password"}, status=status.HTTP_401_UNAUTHORIZED)
 
-        user.delete()
+        # ========== SOFT DELETE + ANONYMIZE ==========
+        user.fullname = "Deleted User"
+        
+        # username hash:
+        from hashlib import sha256
+        hashed_id = sha256(str(user.id).encode()).hexdigest()[:16]
+        user.username = f"deleted_{hashed_id}"
 
+        user.email = f"deleted_{hashed_id}@example.com"
+        user.bio = None
+        user.user_image = None
+        user.set_unusable_password() # cannot login again
+        user.is_active = False
+        
+        user.save()
+
+        # Mark chats as deleted for this user
+        Chat.objects.filter(user1=user).update(user1_deleted_chat=True)
+        Chat.objects.filter(user2=user).update(user2_deleted_chat=True)
+
+        # ========== CLEAR COOKIES ==========
         response = Response({"message": "User account deleted successfully"}, status=status.HTTP_200_OK)
         response = clear_auth_cookies(response)
 
@@ -298,7 +319,7 @@ class OtherUsersProfileView(APIView):
 
     def get(self, request, id):
         try:
-            user = User.objects.get(id=id)
+            user = User.objects.get(id=id, is_active=True)
         except User.DoesNotExist:
             return  Response({
                 "detail": "User not found."

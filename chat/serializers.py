@@ -22,8 +22,13 @@ class ChatSerializer(serializers.ModelSerializer):
             'id',
             'user1',
             'user2',
+            
+            'user1_deleted_chat',
+            'user2_deleted_chat',
+            
             'user1_info',
             'user2_info',
+            
             'created_at',
             'unread_count',
         ]

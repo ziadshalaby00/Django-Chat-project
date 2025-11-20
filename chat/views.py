@@ -19,7 +19,8 @@ class ChatAPIView(APIView):
         user = request.user
 
         queryset = Chat.objects.filter(
-            Q(user1=user) | Q(user2=user)
+            Q(user1=user, user1_deleted_chat=False) |
+            Q(user2=user, user2_deleted_chat=False)
         )
 
         serializer = ChatSerializer(
@@ -44,15 +45,35 @@ class ChatAPIView(APIView):
         ).first()
 
         if existing_chat:
+            if request.user == existing_chat.user1 and existing_chat.user1_deleted_chat:
+                existing_chat.user1_deleted_chat = False
+                existing_chat.save()
+            elif request.user == existing_chat.user2 and existing_chat.user2_deleted_chat:
+                existing_chat.user2_deleted_chat = False
+                existing_chat.save()
+
             serializer = ChatSerializer(existing_chat, context={"request": request})
             return Response({
-                "detail": 'Chat already exists',
+                "detail": "Chat already exists",
                 "chat": serializer.data
             }, status=status.HTTP_200_OK)
 
+        # Check if user2 exists and is active
+        try:
+            other_user = User.objects.get(id=user2)
+            if not other_user.is_active:
+                return Response(
+                    {"detail": "This user is deactivated and cannot receive chats."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "User does not exist."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
         # Create new chat
         serializer = ChatSerializer(data=data, context={"request": request})
-
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -80,7 +101,7 @@ class ChatAPIView(APIView):
 
     def delete(self, request, chat_id=None):
         if chat_id is None:
-            return Response({"detail": "chat_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Chat id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             chat = Chat.objects.get(id=chat_id)
@@ -90,32 +111,16 @@ class ChatAPIView(APIView):
         if request.user not in [chat.user1, chat.user2]:
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
 
-        user1_id = chat.user1.id
-        user2_id = chat.user2.id
+        if request.user == chat.user1:
+            chat.user1_deleted_chat = True
+        else:
+            chat.user2_deleted_chat = True
 
-        chat_id_deleted = chat.id
-
-        chat.delete()
-
-        channel_layer = get_channel_layer()
-        payload = {
-            "type": "chat_deleted",
-            "chat_id": chat_id_deleted
-        }
-
-        async_to_sync(channel_layer.group_send)(
-            f"user_{user1_id}",
-            payload
-        )
-        if user1_id != user2_id:
-            async_to_sync(channel_layer.group_send)(
-                f"user_{user2_id}",
-                payload
-            )
+        chat.save()
 
         return Response({
             "detail": "Chat deleted",
-            "chat_id": chat_id_deleted
+            "chat_id": chat.id
         }, status=status.HTTP_200_OK)
 
 class MarkChatReadApiView(APIView):
@@ -139,7 +144,7 @@ class GetUserByUsername(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            user = User.objects.get(username=username)
+            user = User.objects.get(username=username, is_active=True)
             data = UserByUsernameSerializer(user).data
 
         except User.DoesNotExist:
