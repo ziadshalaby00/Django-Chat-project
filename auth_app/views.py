@@ -268,7 +268,7 @@ class LogoutView(APIView): # Logut
 class DeleteUserView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request):
+    def post(self, request):
         user = request.user
         password = request.data.get("password")
 
