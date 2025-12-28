@@ -32,7 +32,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
     async def chat_created(self, event):
         chat = event['chat']
 
-        if self.user.id not in (chat['user1_info']['id'], chat['user2_info']['id']):
+        if self.user.id not in [p['user_info']['id'] for p in chat['participants']]:
             return
 
         await self.send_json({

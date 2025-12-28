@@ -6,29 +6,21 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class Chat(models.Model):
-    user1 = models.ForeignKey(User, related_name='chat_user1', on_delete=models.CASCADE)
-    user2 = models.ForeignKey(User, related_name='chat_user2', on_delete=models.CASCADE)
-    
-    user1_deleted_chat = models.BooleanField(default=False)
-    user2_deleted_chat = models.BooleanField(default=False)
-    
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"Chat #{self.id}"
+
+class ChatParticipant(models.Model):
+    chat = models.ForeignKey(Chat, related_name='participants', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_chat = models.BooleanField(default=False)
+
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user1', 'user2'],
-                name='unique_chat_users_direct'
-            )
-        ]
-
-    def clean(self):
-        if self.user1.pk > self.user2.pk:
-            self.user1, self.user2 = self.user2, self.user1
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
+        unique_together = ('chat', 'user')
 
     def __str__(self):
-        return f'chat_id: {self.id} => Chat between {self.user1} and {self.user2}'
+        status = "deleted" if self.deleted_chat else "active"
+        return f"Chat #{self.chat.id} - User: {self.user} ({status})"

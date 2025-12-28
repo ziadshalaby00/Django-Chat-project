@@ -25,12 +25,10 @@ from django.shortcuts import get_object_or_404
 from message.models import Message
 from chat.models import Chat
 
-def get_reply_to_message(chat: Chat, reply_to_id: int):
-    """
-    Returns the Message object corresponding to reply_to_id within the chat.
-    If reply_to_id is None, returns None.
-    Raises 404 if the message does not exist or does not belong to the chat.
-    """
+def get_reply_to_message(user, chat: Chat, reply_to_id: int):
+    if not chat.participants.filter(user=user).exists():
+        raise PermissionError("User not a participant in this chat.")
+    
     if not reply_to_id:
         return None
 
@@ -46,15 +44,13 @@ def send_new_message_notification(message):
     Works for any message type (text, file, audio).
     """
     chat = message.chat
-    sender = message.sender
-    receiver = chat.user2 if sender == chat.user1 else chat.user1
+    participants = chat.participants.exclude(user=message.sender)
 
     # Serialize message
     message_data = MessageSerializer(message).data
 
     channel_layer = get_channel_layer()
 
-    # إرسال الرسالة لكل أعضاء الشات
     async_to_sync(channel_layer.group_send)(
         f"chat_{chat.id}",
         {
@@ -63,10 +59,10 @@ def send_new_message_notification(message):
         }
     )
 
-    # إرسال إشعار للمستلم فقط
-    async_to_sync(channel_layer.group_send)(
-        f"user_{receiver.id}",
-        {"type": "new_message_notification"}
-    )
+    for participant in participants:
+        async_to_sync(channel_layer.group_send)(
+            f"user_{participant.user.id}",
+            {"type": "new_message_notification"}
+        )
 
     return message_data

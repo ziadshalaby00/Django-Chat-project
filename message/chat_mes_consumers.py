@@ -44,7 +44,7 @@ class ChatMesConsumer(AsyncJsonWebsocketConsumer):
     def is_user_in_chat(self, chat_id, user):
         try:
             chat = Chat.objects.get(id=chat_id)
-            return user == chat.user1 or user == chat.user2
+            return chat.participants.filter(user=user).exists()
         except Chat.DoesNotExist:
             return False
 

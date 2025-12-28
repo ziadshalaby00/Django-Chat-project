@@ -19,13 +19,15 @@ class MessageAPIView(APIView):
 
         chat = get_object_or_404(
             Chat,
-            Q(id=chat_id) &
-            (Q(user1=user) | Q(user2=user))
+            id=chat_id,
+            participants__user=user
         )
+
+        participant = chat.participants.get(user=user)
 
         messages = (
             Message.objects
-            .filter(chat=chat)
+            .filter(chat=chat, created_at__gt=(participant.deleted_at or 0))
             .select_related("sender")
             .order_by("-timestamp")
         )
@@ -36,13 +38,16 @@ class MessageAPIView(APIView):
         serializer = MessageSerializer(paginated, many=True)
         return paginator.get_paginated_response(serializer.data)
 
-
 class DeleteMessageAPIView(APIView):
     def delete(self, request, message_id: int) -> Response:
         user = request.user
         message = get_object_or_404(Message, id=message_id, sender=user)
-        chat_id = message.chat.id
+        chat = message.chat
 
+        if not chat.participants.filter(user=user).exists():
+            return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        chat_id = chat.id
         message.delete()
 
         channel_layer = get_channel_layer()
