@@ -1,6 +1,5 @@
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from django.db.models import Q
 from chat.models import Chat
 from message.models import Message
 from rest_framework.response import Response
@@ -11,9 +10,9 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from rest_framework import status
 from message.utils import (
-    can_send_message, 
     get_reply_to_message,
-    send_new_message_notification
+    broadcast_new_message,
+    notify_chat_participants
 )
 
 # Create your views here.
@@ -22,13 +21,10 @@ class TextMessageAPIView(APIView):
         user = request.user
 
         chat = get_object_or_404(
-            Chat,
-            Q(id=chat_id) & (Q(user1=user) | Q(user2=user))
+            Chat, 
+            id=chat_id,
+            participants__user=user
         )
-        
-        allowed, reason = can_send_message(user, chat)
-        if not allowed:
-            return Response({"detail": reason}, status=400)
 
         content = request.data.get('content', '').strip()
         if not content:
@@ -39,7 +35,7 @@ class TextMessageAPIView(APIView):
 
         with transaction.atomic():
             reply_to_id = request.data.get("reply_to")
-            reply_to_obj = get_reply_to_message(chat, reply_to_id)
+            reply_to_obj = get_reply_to_message(user, chat, reply_to_id)
 
             message = Message.objects.create(
                 chat=chat,
@@ -53,32 +49,37 @@ class TextMessageAPIView(APIView):
                 content=content
             )
 
-        message_data = send_new_message_notification(message)
+            message_data = broadcast_new_message(message)
+            notify_chat_participants(message)
+            
         return Response(message_data, status=status.HTTP_201_CREATED)
 
 class UpdateTextMessageApiView(APIView):
     def patch(self, request, text_message_id):
         user = request.user
         text_message = get_object_or_404(TextMessage, id=text_message_id)
+        message = text_message.message
+        chat = message.chat
         
-        if text_message.message.sender != user:
+        if not chat.participants.filter(user=user).exists() or message.sender != user:
             return Response({'detail': 'Not allowed'}, status=status.HTTP_403_FORBIDDEN)
 
         new_content = request.data.get("content", "").strip()
         if not new_content:
             return Response({'detail': 'Content is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-        text_message.content = new_content
-        text_message.save()
-        message_data = MessageSerializer(text_message.message).data
-        
-        channel_layer = get_channel_layer()
-        async_to_sync(channel_layer.group_send)(
-            f"chat_{text_message.message.chat.id}",
-            {
-                "type": "message_updated",
-                "message_data": message_data
-            }
-        )
+        with transaction.atomic():
+            text_message.content = new_content
+            text_message.save()
+            message_data = MessageSerializer(message).data
+            
+            channel_layer = get_channel_layer()
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{message.chat.id}",
+                {
+                    "type": "message_updated",
+                    "message_data": message_data
+                }
+            )
 
         return Response(message_data, status=status.HTTP_200_OK)

@@ -2,9 +2,9 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Chat, ChatParticipant
 from auth_app.serializers import ChatUserSerializer
+from django.db import IntegrityError
 
-from django.utils import timezone
-from datetime import datetime
+from .utils import created_after
 
 User = get_user_model()
 
@@ -55,21 +55,25 @@ class ChatSerializer(serializers.ModelSerializer):
         if not participant:
             return 0
 
-        created_after = participant.deleted_at or timezone.make_aware(datetime.min)
         return obj.messages.filter(
             isRead=False, 
-            timestamp__gt=(created_after)
+            timestamp__gt=created_after(participant)
         ).exclude(sender=user).count()
 
     def create(self, validated_data):
-        user_ids = validated_data.pop('user_ids')
-        chat = Chat.objects.create(**validated_data)
+        try:
+            user_ids = validated_data.pop('user_ids')
+            chat = Chat.objects.create(**validated_data)
 
-        participants = [
-            ChatParticipant(chat=chat, user=user)
-            for user in user_ids
-        ]
-        ChatParticipant.objects.bulk_create(participants)
+            participants = [
+                ChatParticipant(chat=chat, user=user)
+                for user in user_ids
+            ]
+            ChatParticipant.objects.bulk_create(participants)
+        except IntegrityError as e:
+            raise serializers.ValidationError(
+                {"detail": f"You cannot create a chat with yourself."}
+            )
         return chat
 
 

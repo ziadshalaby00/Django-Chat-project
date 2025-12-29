@@ -294,10 +294,6 @@ class DeleteUserView(APIView):
         
         user.save()
 
-        # Mark chats as deleted for this user
-        Chat.objects.filter(user1=user).update(user1_deleted_chat=True)
-        Chat.objects.filter(user2=user).update(user2_deleted_chat=True)
-
         # ========== CLEAR COOKIES ==========
         response = Response({"message": "User account deleted successfully"}, status=status.HTTP_200_OK)
         response = clear_auth_cookies(response)

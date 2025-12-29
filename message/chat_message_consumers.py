@@ -3,7 +3,7 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from channels.db import database_sync_to_async
 from .models import Chat
 
-class ChatMesConsumer(AsyncJsonWebsocketConsumer):
+class ChatMessageConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         self.chat_id = self.scope['url_route']['kwargs']['chat_id']
         self.user = self.scope["user"]
@@ -34,17 +34,22 @@ class ChatMesConsumer(AsyncJsonWebsocketConsumer):
         except Exception:
             pass
 
-    async def send_message(self, event):
+    async def broadcast_new_message(self, event):
         await self.send_json({
-            "type": "send_message",
+            "type": "broadcast_new_message",
             "message_data": event['message_data']
         })
+
+    async def receive(self, text_data=None):
+        pass
 
     @database_sync_to_async
     def is_user_in_chat(self, chat_id, user):
         try:
-            chat = Chat.objects.get(id=chat_id)
-            return chat.participants.filter(user=user).exists()
+            return Chat.objects.filter(
+                id=chat_id,
+                participants__user=user
+            ).exists()
         except Chat.DoesNotExist:
             return False
 
@@ -53,9 +58,6 @@ class ChatMesConsumer(AsyncJsonWebsocketConsumer):
             "type": "message_deleted",
             "message_id": event["message_id"]
         })
-
-    async def receive(self, text_data=None):
-        pass
 
     async def message_updated(self, event):
         await self.send_json({

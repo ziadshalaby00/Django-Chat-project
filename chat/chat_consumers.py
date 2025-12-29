@@ -40,5 +40,5 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'chat': chat
         })
     
-    async def new_message_notification(self, event):
+    async def notify_chat_participants(self, event):
         await self.send_json({ 'type': 'new_message_notification' })

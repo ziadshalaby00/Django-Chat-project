@@ -1,23 +1,20 @@
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
 from rest_framework.response import Response
-from django.db.models import Q
 import magic
-import time, os, subprocess, tempfile
+import uuid
+import os, subprocess, tempfile
 from message.models import Message
 from .models import AudioMessage
 from django.core.files import File
 from mutagen.mp3 import MP3
-from message.serializers import MessageSerializer
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
 from django.db import transaction
 from chat.models import Chat
 from rest_framework import status
 from message.utils import (
-    can_send_message, 
     get_reply_to_message,
-    send_new_message_notification
+    broadcast_new_message,
+    notify_chat_participants
 )
 
 class UploadAudioAPIView(APIView):
@@ -26,12 +23,9 @@ class UploadAudioAPIView(APIView):
         
         chat = get_object_or_404(
             Chat, 
-            Q(id=chat_id) & (Q(user1=user) | Q(user2=user))
+            id=chat_id,
+            participants__user=user
         )
-        
-        allowed, reason = can_send_message(user, chat)
-        if not allowed:
-            return Response({"detail": reason}, status=400)
 
         raw_audio = request.FILES.get('audio')
         if not raw_audio:
@@ -43,6 +37,13 @@ class UploadAudioAPIView(APIView):
         if mime_type not in ["audio/webm", "video/webm"]:
             return Response({"detail": "Only webm audio is allowed."}, status=status.HTTP_400_BAD_REQUEST)
 
+        MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+        if raw_audio.size > MAX_FILE_SIZE:
+            return Response(
+                {"detail": "Audio file too large"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         temp_input = tempfile.NamedTemporaryFile(suffix=".webm", delete=False)
         temp_output_path = temp_input.name.replace(".webm", ".mp3")
 
@@ -53,26 +54,38 @@ class UploadAudioAPIView(APIView):
 
             result = subprocess.run(
                 [
-                    "ffmpeg", "-y",
+                    "ffmpeg",
+                    "-nostdin",
+                    "-y",
+                    "-loglevel", "error",
                     "-i", temp_input.name,
                     "-codec:a", "libmp3lame",
-                    "-qscale:a", "5",
+                    "-b:a", "128k",
                     temp_output_path
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=15
+                timeout=30
             )
 
             if result.returncode != 0:
-                return Response({"detail": "Audio conversion failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({
+                    "detail": "Unable to process audio. Please try recording again."
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             mp3_info = MP3(temp_output_path)
             duration = mp3_info.info.length
+            
+            MAX_AUDIO_DURATION_SECONDS = 60 * 60  # 1 hour
+            if duration > MAX_AUDIO_DURATION_SECONDS:
+                return Response(
+                    {"detail": "Audio is too long"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             with transaction.atomic():
                 reply_to_id = request.data.get("reply_to")
-                reply_to_obj = get_reply_to_message(chat, reply_to_id)
+                reply_to_obj = get_reply_to_message(user, chat, reply_to_id)
 
                 message = Message.objects.create(
                     chat=chat,
@@ -81,14 +94,16 @@ class UploadAudioAPIView(APIView):
                     reply_to=reply_to_obj
                 )
 
-                filename = f"{user.id}_{chat.id}_{int(time.time())}.mp3"
-
+                filename = f"{uuid.uuid4().hex}.mp3"
                 with open(temp_output_path, "rb") as f:
                     AudioMessage.objects.create(
                         message=message,
                         audio_file=File(f, name=filename),
                         audio_duration=duration
                     )
+                    
+                message_data = broadcast_new_message(message)
+                notify_chat_participants(message)
 
         finally:
             if os.path.exists(temp_input.name):
@@ -96,5 +111,4 @@ class UploadAudioAPIView(APIView):
             if os.path.exists(temp_output_path):
                 os.remove(temp_output_path)
 
-        message_data = send_new_message_notification(message)
         return Response(message_data, status=status.HTTP_201_CREATED)

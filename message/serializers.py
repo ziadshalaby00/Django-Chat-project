@@ -27,7 +27,11 @@ class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = [
-            'id', 'chat', 'sender', 'type', 'timestamp',
+            'id', 
+            'chat', 
+            'sender', 
+            'type', 
+            'timestamp',
             'reply_to',
             'audio_message',
             'file_message',

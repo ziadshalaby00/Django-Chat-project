@@ -10,6 +10,8 @@ from rest_framework import status
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
+from chat.utils import created_after
+
 class MessagePagination(PageNumberPagination):
     page_size = 30
 
@@ -23,11 +25,14 @@ class MessageAPIView(APIView):
             participants__user=user
         )
 
-        participant = chat.participants.get(user=user)
+        participant = get_object_or_404(chat.participants, user=user)
 
         messages = (
             Message.objects
-            .filter(chat=chat, created_at__gt=(participant.deleted_at or 0))
+            .filter(
+                chat=chat,
+                timestamp__gt=created_after(participant)
+            )
             .select_related("sender")
             .order_by("-timestamp")
         )

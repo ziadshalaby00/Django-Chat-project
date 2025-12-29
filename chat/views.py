@@ -9,8 +9,6 @@ from django.shortcuts import get_object_or_404
 from message.models import Message
 
 from django.utils import timezone
-from datetime import datetime
-
 from django.db.models import Max
 from django.db.models import Count
 
@@ -19,6 +17,7 @@ from .serializers import ChatSerializer, UserByUsernameSerializer
 
 User = get_user_model()
 
+from .utils import created_after
 
 class ChatAPIView(APIView):
     def get(self, request, chat_id=None):
@@ -60,7 +59,7 @@ class ChatAPIView(APIView):
 
         if existing_chat:
             # Restore deleted_chat if needed
-            participant = existing_chat.participants.get(user=request.user)
+            participant = get_object_or_404(existing_chat.participants, user=request.user)
             if participant.deleted_chat:
                 participant.deleted_chat = False
                 participant.save()
@@ -119,7 +118,7 @@ class ChatAPIView(APIView):
         if not chat.participants.filter(user=request.user).exists():
             return Response({"detail": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
 
-        participant = chat.participants.get(user=request.user)
+        participant = get_object_or_404(chat.participants, user=request.user)
         participant.deleted_chat = True
         participant.deleted_at = timezone.now()
         participant.save()
@@ -139,13 +138,12 @@ class MarkChatReadApiView(APIView):
             participants__user=user
         )
 
-        participant = chat.participants.get(user=user)
-        created_after = participant.deleted_at or timezone.make_aware(datetime.min)
+        participant = get_object_or_404(chat.participants, user=user)
         
         Message.objects.filter(
             chat=chat,
             isRead=False,
-            timestamp__gt=(created_after)
+            timestamp__gt=created_after(participant)
         ).exclude(sender=user).update(isRead=True)
 
         return Response({'detail': 'Messages marked as read.'}, status=status.HTTP_200_OK)

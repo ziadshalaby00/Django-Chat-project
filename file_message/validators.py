@@ -31,9 +31,9 @@ ALLOWED_MIME_TYPES = [
     "text/css", "application/json", "application/xml", "text/csv",
 
     # EXE
-    "application/vnd.microsoft.portable-executable",
-    "application/x-msdownload",
-    "application/x-dosexec",
+    # "application/vnd.microsoft.portable-executable",
+    # "application/x-msdownload",
+    # "application/x-dosexec",
 ]
 
 
