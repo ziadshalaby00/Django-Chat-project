@@ -24,7 +24,9 @@ class ChatSerializer(serializers.ModelSerializer):
 
     # create-only fields
     user_ids = serializers.ListField(
-        child=serializers.PrimaryKeyRelatedField(queryset=User.objects.all()),
+        child=serializers.PrimaryKeyRelatedField(
+            queryset=User.objects.all()
+        ),
         write_only=True
     )
 

@@ -9,7 +9,7 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "fullname", "username", "email", "bio", "user_image",
-            "date_joined", "last_login", "is_active"
+            "date_joined", "last_login", "is_active", "is_deleted"
         ]
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -26,14 +26,6 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         print(validated_data.items())
         validated_data["password"] = make_password(validated_data["password"])
         return super().create(validated_data)
-
-class SendPasswordResetLinkSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-
-    def validate_email(self, value):
-        if not User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("User with this email does not exist.")
-        return value
 
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode
@@ -102,7 +94,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 class ChatUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'fullname', 'username', 'is_active']
+        fields = ['id', 'fullname', 'username', 'is_active', 'is_deleted']
 
 class OtherUsersSerializer(serializers.ModelSerializer):
     class Meta:

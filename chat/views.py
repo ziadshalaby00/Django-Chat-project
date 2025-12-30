@@ -71,18 +71,7 @@ class ChatAPIView(APIView):
             }, status=status.HTTP_200_OK)
 
         # Check if user2 exists and is active
-        try:
-            other_user = User.objects.get(id=user2)
-            if not other_user.is_active:
-                return Response(
-                    {"detail": "This user is deactivated and cannot receive chats."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        except User.DoesNotExist:
-            return Response(
-                {"detail": "User does not exist."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        get_object_or_404(User, id=user2)
 
         # Create new chat
         serializer = ChatSerializer(data={"user_ids": [user1, user2]}, context={"request": request})
@@ -158,7 +147,7 @@ class GetUserByUsername(APIView):
             }, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            user = User.objects.get(username=username, is_active=True)
+            user = User.objects.get(username=username)
             data = UserByUsernameSerializer(user).data
 
         except User.DoesNotExist:

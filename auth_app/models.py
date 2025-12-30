@@ -1,3 +1,4 @@
+from django.contrib.auth.models import BaseUserManager
 from django.db import models
 import uuid
 import os
@@ -10,11 +11,24 @@ def user_image_upload_path(instance, filename):
     unique_name = f"{uuid.uuid4()}.{ext}"
     return os.path.join("users-image", unique_name)
 
+class ActiveUserManager(BaseUserManager):
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            is_active=True,
+            is_deleted=False
+        )
+
 class User(AbstractUser):
     fullname = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
     user_image = models.ImageField(upload_to=user_image_upload_path, null=True, blank=True)
     bio = models.CharField(max_length=450, default='Good talks make good days.', null=True, blank=True)
+    
+    is_deleted = models.BooleanField(default=False)
+
+    # 👇 managers
+    objects = ActiveUserManager()
+    all_objects = models.Manager()
 
     def __str__(self):
         return self.username

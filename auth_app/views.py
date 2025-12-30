@@ -7,7 +7,8 @@ from django.conf import settings
 from rest_framework.generics import RetrieveAPIView
 
 from .serializers import UserRegisterSerializer, UserSerializer, OtherUsersSerializer
-
+from django.db import transaction
+from hashlib import sha256
 import requests
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -21,7 +22,7 @@ from rest_framework_simplejwt.views import TokenVerifyView
 from rest_framework_simplejwt.serializers import TokenVerifySerializer
 from rest_framework_simplejwt.exceptions import TokenError, InvalidToken
 
-from .serializers import SendPasswordResetLinkSerializer, PasswordResetConfirmSerializer
+from .serializers import PasswordResetConfirmSerializer
 from django.utils.http import urlsafe_base64_encode
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
@@ -214,24 +215,31 @@ class SendPasswordResetLinkView(APIView): # Forgot Password
     permission_classes = [AllowAny]
     
     def post(self, request):
-        serializer = SendPasswordResetLinkSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"]
-        user = User.objects.get(email=email)
+        email = request.data.get("email", "").strip()
+        if not email:
+            return Response(
+                {"detail": "Email is required."},
+                status=400
+            )
+            
+        user = User.objects.filter(email=email).first()
+        if user:
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
 
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = default_token_generator.make_token(user)
-        reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+            specific_send_mail(
+                subject="Password Reset Request",
+                message=f"Click the link to reset your password",
+                link=reset_url,
+                from_email=None,
+                recipient_list=[email],
+            )
 
-        specific_send_mail(
-            subject="Password Reset Request",
-            message=f"Click the link to reset your password",
-            link=reset_url,
-            from_email=None,
-            recipient_list=[email],
+        return Response(
+            {"message": "If the email exists, a password reset link has been sent."},
+            status=200
         )
-
-        return Response({"message": "Password reset link sent to your email."}, status=status.HTTP_200_OK)
 
 class PasswordResetConfirmView(APIView): # Reset Password
     permission_classes = [AllowAny]
@@ -279,20 +287,22 @@ class DeleteUserView(APIView):
             return Response({"error": "Incorrect password"}, status=status.HTTP_401_UNAUTHORIZED)
 
         # ========== SOFT DELETE + ANONYMIZE ==========
-        user.fullname = "Deleted User"
-        
-        # username hash:
-        from hashlib import sha256
-        hashed_id = sha256(str(user.id).encode()).hexdigest()[:16]
-        user.username = f"deleted_{hashed_id}"
+        with transaction.atomic():
+            user.fullname = "Deleted User"
+            
+            # username hash:
+            hashed_id = sha256(str(user.id).encode()).hexdigest()[:16]
+            user.username = f"deleted_{hashed_id}"
 
-        user.email = f"deleted_{hashed_id}@example.com"
-        user.bio = None
-        user.user_image = None
-        user.set_unusable_password() # cannot login again
-        user.is_active = False
-        
-        user.save()
+            user.email = f"deleted_{hashed_id}@example.com"
+            user.bio = None
+            user.user_image = None
+            user.set_unusable_password() # cannot login again
+            
+            user.is_deleted = True
+            user.is_active = False
+            
+            user.save()
 
         # ========== CLEAR COOKIES ==========
         response = Response({"message": "User account deleted successfully"}, status=status.HTTP_200_OK)
@@ -315,7 +325,7 @@ class OtherUsersProfileView(APIView):
 
     def get(self, request, id):
         try:
-            user = User.objects.get(id=id, is_active=True)
+            user = User.objects.get(id=id)
         except User.DoesNotExist:
             return  Response({
                 "detail": "User not found."
