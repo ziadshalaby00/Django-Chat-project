@@ -37,8 +37,7 @@ class CSRFMiddlewareWithJWT:
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         path = request.path
-        print(path)
-        
+
         for pattern in self.exempt_patterns:
             if re.fullmatch(pattern, path):
                 return None
@@ -51,7 +50,6 @@ class CSRFMiddlewareWithJWT:
                 callback_kwargs={}
             )
             if reason:
-                print(reason)
                 return JsonResponse({
                     "error": "csrf_failed",
                     "message": "CSRF verification failed."

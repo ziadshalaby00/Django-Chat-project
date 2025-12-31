@@ -34,8 +34,6 @@ class CookieJWTAuthWebSocket(BaseMiddleware):
         # =============================
         # 3) تحقق من CSRF
         # =============================
-        print(csrf_cookie)
-        print(csrf_query)
         if not self.check_csrf(csrf_cookie, csrf_query):
             scope["user"] = AnonymousUser()
             return await super().__call__(scope, receive, send)
