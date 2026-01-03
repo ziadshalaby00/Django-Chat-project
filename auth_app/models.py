@@ -1,4 +1,5 @@
 from django.contrib.auth.models import BaseUserManager
+from django.core.validators import RegexValidator
 from django.db import models
 import uuid
 import os
@@ -19,6 +20,16 @@ class ActiveUserManager(BaseUserManager):
         )
 
 class User(AbstractUser):
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-z0-9]+$',
+                message="Username may contain only letters and numbers."
+            )
+        ]
+    )
     fullname = models.CharField(max_length=150)
     email = models.EmailField(unique=True)
     user_image = models.ImageField(upload_to=user_image_upload_path, null=True, blank=True)

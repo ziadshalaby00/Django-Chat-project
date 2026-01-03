@@ -292,9 +292,9 @@ class DeleteUserView(APIView):
             
             # username hash:
             hashed_id = sha256(str(user.id).encode()).hexdigest()[:16]
-            user.username = f"deleted_{hashed_id}"
+            user.username = f"__deleted__{hashed_id}"
 
-            user.email = f"deleted_{hashed_id}@example.com"
+            user.email = f"__deleted__{hashed_id}@example.com"
             user.bio = None
             user.user_image = None
             user.set_unusable_password() # cannot login again

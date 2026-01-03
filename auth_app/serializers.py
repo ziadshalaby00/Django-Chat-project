@@ -89,9 +89,16 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         return instance
 
 class ChatUserSerializer(serializers.ModelSerializer):
+    username = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'fullname', 'username', 'is_active', 'is_deleted']
+        fields = ['id', 'fullname', 'username', 'user_image', 'is_active', 'is_deleted']
+
+    def get_username(self, obj):
+        if obj.is_deleted:
+            return None
+        return obj.username
 
 class OtherUsersSerializer(serializers.ModelSerializer):
     class Meta:
