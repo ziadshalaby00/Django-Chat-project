@@ -11,7 +11,7 @@ class CookieJWTAuthWebSocket(BaseMiddleware):
         headers = dict(scope["headers"])
 
         # =============================
-        # 1) استخراج Cookies
+        # 1) استخراج Cookies 
         # =============================
         cookie_header = headers.get(b'cookie', b'').decode()
         cookies = {}
@@ -21,26 +21,9 @@ class CookieJWTAuthWebSocket(BaseMiddleware):
                 cookies[name] = value
 
         access_token = cookies.get("access")
-        csrf_cookie = cookies.get("csrftoken")
 
         # =============================
-        # 2) استخراج token من query
-        # =============================
-        query_string = scope.get("query_string", b"").decode()
-        csrf_query = None
-        if "X-CSRFToken=" in query_string:
-            csrf_query = query_string.split("X-CSRFToken=")[-1].split("&")[0]
-
-        # =============================
-        # 3) تحقق من CSRF
-        # =============================
-        if not self.check_csrf(csrf_cookie, csrf_query):
-            scope["user"] = AnonymousUser()
-            return await super().__call__(scope, receive, send)
-
-
-        # =============================
-        # 4) تحقق من JWT
+        # 4) تحقق من JWT 
         # =============================
         scope["user"] = await self.get_user(access_token)
 
@@ -55,9 +38,3 @@ class CookieJWTAuthWebSocket(BaseMiddleware):
             return User.objects.get(id=at["user_id"])
         except:
             return AnonymousUser()
-
-    # =======================================
-    # دالة التحقق من CSRF
-    # =======================================
-    def check_csrf(self, csrf_cookie, csrf_query):
-        return csrf_cookie == csrf_query
