@@ -77,13 +77,3 @@ class ChatSerializer(serializers.ModelSerializer):
                 {"detail": f"You cannot create a chat with yourself."}
             )
         return chat
-
-
-class UserByUsernameSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = [
-            'id',
-            'fullname',
-            'username',
-        ]

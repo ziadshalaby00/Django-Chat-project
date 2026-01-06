@@ -9,7 +9,9 @@ class Chat(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Chat #{self.id}"
+        users = self.participants.select_related('user')[:2]
+        usernames = ', '.join(p.user.username for p in users)
+        return f"Chat #{self.id} ({usernames})"
 
 class ChatParticipant(models.Model):
     chat = models.ForeignKey(Chat, related_name='participants', on_delete=models.CASCADE)

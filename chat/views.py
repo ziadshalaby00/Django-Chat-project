@@ -12,8 +12,9 @@ from django.utils import timezone
 from django.db.models import Max
 from django.db.models import Count
 
-from .models import Chat
-from .serializers import ChatSerializer, UserByUsernameSerializer
+from .models import Chat, ChatParticipant
+from .serializers import ChatSerializer
+from auth_app.serializers import ChatUserSerializer
 
 User = get_user_model()
 
@@ -137,24 +138,52 @@ class MarkChatReadApiView(APIView):
 
         return Response({'detail': 'Messages marked as read.'}, status=status.HTTP_200_OK)
 
+from django.db.models import Q
+
 class GetUserByUsername(APIView):
     def get(self, request):
         username = request.query_params.get('username', '').strip()
 
         if not username:
-            return Response({
-                'detail': 'Username is required.'
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {'detail': 'Username is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         try:
             user = User.objects.get(username=username)
-            data = UserByUsernameSerializer(user).data
+
+            serializer = ChatUserSerializer(
+                user,
+                context={'request': request}
+            )
+            data = serializer.data
+
+            notice = None
+
+            if user == request.user:
+                notice = 'You cannot create a chat with yourself.'
+
+            else:
+                already_in_chat = ChatParticipant.objects.filter(
+                    user=request.user,
+                    deleted_chat=False,
+                    chat__participants__user=user
+                ).exists()
+
+                if already_in_chat:
+                    notice = 'Already in your chats.'
+
+            data['notice'] = notice
+
+            return Response(
+                {'user': data},
+                status=status.HTTP_200_OK
+            )
 
         except User.DoesNotExist:
-            return Response({
-                "detail": "User not found."
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {'detail': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        return Response({
-            "user": data
-        }, status=status.HTTP_200_OK)
