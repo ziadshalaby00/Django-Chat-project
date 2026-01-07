@@ -23,8 +23,12 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        validated_data["password"] = make_password(validated_data["password"])
-        return super().create(validated_data)
+        password = validated_data.pop("password")
+        user = User.objects.create_user(
+            password=password,
+            **validated_data
+        )
+        return user
 
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_decode

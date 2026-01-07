@@ -1,4 +1,4 @@
-from django.contrib.auth.models import BaseUserManager
+from django.contrib.auth.models import UserManager
 from django.core.validators import RegexValidator
 from django.db import models
 import uuid
@@ -12,7 +12,7 @@ def user_image_upload_path(instance, filename):
     unique_name = f"{uuid.uuid4()}.{ext}"
     return os.path.join("users-image", unique_name)
 
-class ActiveUserManager(BaseUserManager):
+class ActiveUserManager(UserManager):
     def get_queryset(self):
         return super().get_queryset().filter(
             is_active=True,
