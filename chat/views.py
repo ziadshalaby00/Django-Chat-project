@@ -81,14 +81,16 @@ class ChatAPIView(APIView):
 
         chat = serializer.save()
 
-        # Send WebSocket event
+        # Send WebSocket event to the other user only
         channel_layer = get_channel_layer()
         payload = {
             "type": "chat_created",
             "chat": serializer.data
         }
 
-        for participant in chat.participants.all():
+        # Exclude current user
+        other_participants = chat.participants.exclude(user=request.user)
+        for participant in other_participants:
             async_to_sync(channel_layer.group_send)(
                 f"user_{participant.user.id}",
                 payload
