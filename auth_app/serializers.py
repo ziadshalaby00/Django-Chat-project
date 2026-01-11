@@ -108,6 +108,5 @@ class OtherUsersSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = [
-            "id", "fullname", "username", "bio", "user_image",
-            "date_joined"
+            "id", "fullname", "username", "bio", "user_image"
         ]
