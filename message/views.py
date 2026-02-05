@@ -22,7 +22,8 @@ class MessageAPIView(APIView):
         chat = get_object_or_404(
             Chat,
             id=chat_id,
-            participants__user=user
+            participants__user=user,
+            participants__deleted_chat=False
         )
 
         participant = get_object_or_404(chat.participants, user=user)
