@@ -1,6 +1,6 @@
 import magic
 
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+MAX_FILE_SIZE = 70 * 1024 * 1024  # 50MB
 
 ALLOWED_MIME_TYPES = [
     # الصور
