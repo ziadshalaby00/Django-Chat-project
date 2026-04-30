@@ -64,6 +64,6 @@ class UploadFileAPIView(APIView):
                 file_type=file_type,
             )
 
-            message_data = broadcast_new_message(message)
+            message_data = broadcast_new_message(message, request)
             notify_chat_participants(message)
         return Response(message_data, status=status.HTTP_201_CREATED)

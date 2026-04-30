@@ -102,7 +102,7 @@ class UploadAudioAPIView(APIView):
                         audio_duration=duration
                     )
                     
-                message_data = broadcast_new_message(message)
+                message_data = broadcast_new_message(message, request)
                 notify_chat_participants(message)
 
         finally:
