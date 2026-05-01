@@ -49,7 +49,7 @@ class TextMessageAPIView(APIView):
                 content=content
             )
 
-            message_data = broadcast_new_message(message)
+            message_data = broadcast_new_message(message, request)
             notify_chat_participants(message)
             
         return Response(message_data, status=status.HTTP_201_CREATED)

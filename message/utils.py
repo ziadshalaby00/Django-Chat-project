@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404
 from message.models import Message
+from chat.serializers import ChatSerializer
 from chat.models import Chat
 from django.core.exceptions import PermissionDenied
 
@@ -31,13 +32,24 @@ def broadcast_new_message(message, request):
 
     return message_data
     
+import json
+from rest_framework.renderers import JSONRenderer
+
 def notify_chat_participants(message):
     chat = message.chat
     participants = chat.participants.exclude(user=message.sender)
+
+    # serialize بـ JSONRenderer عشان يطلع bytes
+    chat_json = JSONRenderer().render(ChatSerializer(chat).data)
+    # حول لـ dict
+    chat_dict = json.loads(chat_json)
 
     channel_layer = get_channel_layer()
     for participant in participants:
         async_to_sync(channel_layer.group_send)(
             f"user_{participant.user.id}",
-            {"type": "notify_chat_participants"}
+            {
+                "type": "notify_chat_participants",
+                "chat": chat_dict
+            }
         )

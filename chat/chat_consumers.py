@@ -41,4 +41,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         })
     
     async def notify_chat_participants(self, event):
-        await self.send_json({ 'type': 'new_message_notification' })
+        chat = event['chat']
+        
+        if self.user.id not in [p['user_info']['id'] for p in chat['participants']]:
+            return
+        
+        await self.send_json({ 
+            'type': 'new_message_notification',
+            'chat_id': chat['id']
+        })
