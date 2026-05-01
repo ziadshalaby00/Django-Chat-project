@@ -1,6 +1,6 @@
 import magic
 
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 ALLOWED_MIME_TYPES = [
     # Images
@@ -93,7 +93,7 @@ def validate_file_upload(file) -> str | None:
         return f"File MIME type '{detected_mime}' is not allowed"
 
     if detected_mime == "application/zip":
-        if file.size > 30 * 1024 * 1024:  # 30MB
+        if file.size > 3 * 1024 * 1024:  # 3MB
             return "Zip file too large and may be unsafe (max 30MB)"
 
     return None

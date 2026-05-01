@@ -37,7 +37,7 @@ class UploadAudioAPIView(APIView):
         if mime_type not in ["audio/webm", "video/webm"]:
             return Response({"detail": "Only webm audio is allowed."}, status=status.HTTP_400_BAD_REQUEST)
 
-        MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
+        MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
         if raw_audio.size > MAX_FILE_SIZE:
             return Response(
                 {"detail": "Audio file too large"},
