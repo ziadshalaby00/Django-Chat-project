@@ -67,7 +67,7 @@ class CookieTokenObtainPairView(TokenObtainPairView): # Login
     serializer_class = TokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
-        response = super().post(request, *args, **kwargs)  # استدعاء الكلاس الأصلي
+        response = super().post(request, *args, **kwargs)   
         data = response.data
 
         access = data.get("access")

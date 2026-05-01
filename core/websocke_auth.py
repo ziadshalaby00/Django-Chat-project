@@ -11,7 +11,7 @@ class CookieJWTAuthWebSocket(BaseMiddleware):
         headers = dict(scope["headers"])
 
         # =============================
-        # 1) استخراج Cookies 
+        # 1) Extraction Cookies 
         # =============================
         cookie_header = headers.get(b'cookie', b'').decode()
         cookies = {}
@@ -23,7 +23,7 @@ class CookieJWTAuthWebSocket(BaseMiddleware):
         access_token = cookies.get("access")
 
         # =============================
-        # 4) تحقق من JWT 
+        # 4) Verify JWT 
         # =============================
         scope["user"] = await self.get_user(access_token)
 

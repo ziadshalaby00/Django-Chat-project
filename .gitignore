@@ -1,40 +1,84 @@
-# بيئة Python الافتراضية
+# Python virtual environments
 venv/
 .env
 .venv/
 env/
 ENV/
 
-# ملفات Byte-compiled
+# Byte-compiled files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# قاعدة بيانات SQLite (إذا كنت تستخدمها)
+# SQLite database (if used)
 db.sqlite3
 db.sqlite3-journal
 
-# مجلدات Django المؤقتة
+# Django temporary folders and files
 *.log
 local_settings.py
 media/
 staticfiles/
 
-# ملفات التغطية والاختبار
+# Coverage and testing files
 .coverage
 .coverage.*
 .tox/
 .pytest_cache/
 .hypothesis/
 
-# PyCharm و VS Code
+# IDE configurations (PyCharm & VS Code)
 .idea/
 .vscode/
 
-# Cython debug
+# Cython debug symbols
 cython_debug/
 
-# Ruff و mypy
+# Ruff and mypy caches
 .ruff_cache/
 .mypy_cache/
 .dmypy.json
+.pyre/
+.pytype/
+
+# ==========================
+# ADDITIONAL ENTRIES
+# ==========================
+
+# macOS system files
+.DS_Store
+
+# Windows system files
+Thumbs.db
+desktop.ini
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Environment variable files (secrets)
+*.env
+.env.*
+
+# Docker
+docker-compose.override.yml
+
+# Node.js (if using frontend tools)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Backup files
+*.bak
+*.swp
+*.swo
+*~

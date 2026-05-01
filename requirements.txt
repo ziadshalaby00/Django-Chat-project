@@ -11,6 +11,7 @@ constantly==23.10.4
 cryptography==46.0.3
 daphne==4.2.1
 Django==5.2.7
+django-cleanup==9.0.0
 django-cors-headers==4.9.0
 django-environ==0.12.0
 djangorestframework==3.16.1
@@ -25,13 +26,14 @@ idna==3.11
 incremental==24.7.2
 mutagen==1.47.0
 oauthlib==3.3.1
+pillow==12.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pycparser==2.23
 PyJWT==2.10.1
 pyOpenSSL==25.3.0
 pyparsing==3.2.5
-python-magic==0.4.27
+python-magic-bin==0.4.14
 requests==2.32.5
 requests-oauthlib==2.0.0
 rsa==4.9.1
@@ -41,5 +43,6 @@ sqlparse==0.5.3
 Twisted==25.5.0
 txaio==25.9.2
 typing_extensions==4.15.0
+tzdata==2025.3
 urllib3==2.5.0
 zope.interface==8.0.1

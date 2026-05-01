@@ -65,27 +65,22 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         fields = ["username", "fullname", "email", "password", "old_password", "user_image", "bio"]
 
     def validate(self, attrs):
-        # لو المستخدم عايز يغير الباسوورد
         if "password" in attrs:
             old_password = attrs.get("old_password")
             if not old_password:
                 raise serializers.ValidationError({"old_password": "Current password is required to set a new password."})
             
-            # تأكد من صحة الباسوورد القديم
             if not self.instance.check_password(old_password):
                 raise serializers.ValidationError({"old_password": "Current password is incorrect."})
         return attrs
 
     def update(self, instance, validated_data):
-        # شيل old_password من validated_data
         validated_data.pop("old_password", None)
 
-        # تحديث الباسوورد لو موجود
         password = validated_data.pop("password", None)
         if password:
             instance.set_password(password)
 
-        # تحديث باقي البيانات
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 

@@ -25,6 +25,6 @@ class CustomUserAdmin(UserAdmin):
     def get_queryset(self, request):
         return User.all_objects.all()
 
-admin.site.site_header = "Proton Admin"      # العنوان اللي في الأعلى
-admin.site.site_title = "Proton Admin Portal" # العنوان في تبويب المتصفح
-admin.site.index_title = "Welcome to Proton Admin Dashboard"  # النص في الصفحة الرئيسية
+admin.site.site_header = "Proton Admin"
+admin.site.site_title = "Proton Admin Portal"
+admin.site.index_title = "Welcome to Proton Admin Dashboard"
