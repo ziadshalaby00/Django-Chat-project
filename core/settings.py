@@ -235,6 +235,12 @@ CSRF_EXEMPT_URL_PATTERNS = [
     re.compile(r"^/api/auth/logout/?$"),
 ]
 
+REST_FRAMEWORK = {
+    "DEFAULT_THROTTLE_RATES": {
+        "main": "120/min",
+        "password_reset": "3/hour",
+    }
+}
 
 from pathlib import Path
 

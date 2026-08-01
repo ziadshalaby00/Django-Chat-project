@@ -10,6 +10,7 @@ from .serializers import UserRegisterSerializer, UserSerializer, OtherUsersSeria
 from django.db import transaction
 from hashlib import sha256
 import requests
+from requests.exceptions import Timeout, RequestException
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -38,19 +39,30 @@ from .serializers import UserUpdateSerializer
 
 from django.core.files.base import ContentFile
 
+from django.utils.text import slugify
+from uuid import uuid4
+
 # views.py
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, throttle_classes
 from django.views.decorators.csrf import ensure_csrf_cookie
 
-from chat.models import Chat
+from rest_framework.throttling import AnonRateThrottle
 
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
 
+class MainThrottle(AnonRateThrottle):
+    scope = "main"
+
+class PasswordResetThrottle(AnonRateThrottle):
+    scope = "password_reset"
+
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [MainThrottle]
 
     def post(self, request):
         serializer = UserRegisterSerializer(data=request.data)
@@ -64,6 +76,7 @@ class RegisterView(APIView):
 
 class CookieTokenObtainPairView(TokenObtainPairView): # Login
     permission_classes = [AllowAny]
+    throttle_classes = [MainThrottle]
     serializer_class = TokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
@@ -88,6 +101,7 @@ class CookieTokenObtainPairView(TokenObtainPairView): # Login
     
 class CookieTokenRefreshView(TokenRefreshView): # Refresh
     permission_classes = [AllowAny]
+    throttle_classes = [MainThrottle]
     serializer_class = TokenRefreshSerializer
 
     def post(self, request, *args, **kwargs):
@@ -111,6 +125,7 @@ class CookieTokenRefreshView(TokenRefreshView): # Refresh
 
 class CookieTokenVerifyView(TokenVerifyView): # Verfivy Token
     permission_classes = [AllowAny]
+    throttle_classes = [MainThrottle]
     serializer_class = TokenVerifySerializer
 
     def post(self, request, *args, **kwargs):
@@ -143,6 +158,7 @@ class CookieTokenVerifyView(TokenVerifyView): # Verfivy Token
 
 class GoogleLoginView(APIView): # Google Login
     permission_classes = [AllowAny]
+    throttle_classes = [MainThrottle]
     
     def post(self, request):
         code = request.data.get("code")
@@ -158,7 +174,20 @@ class GoogleLoginView(APIView): # Google Login
             "grant_type": "authorization_code",
         }
 
-        r = requests.post(token_url, data=data)
+        try:
+            r = requests.post(token_url, data=data, timeout=10)
+            r.raise_for_status()
+        except Timeout:
+            return Response(
+                {"error": "Google request timed out"},
+                status=status.HTTP_504_GATEWAY_TIMEOUT
+            )
+        except RequestException:
+            return Response(
+                {"error": "Failed to exchange Google code"},
+                status=status.HTTP_502_BAD_GATEWAY
+            )
+            
         if r.status_code != 200:
             return Response({"error": "Failed to exchange code"}, status=400)
 
@@ -177,7 +206,10 @@ class GoogleLoginView(APIView): # Google Login
             )
             email = idinfo.get("email")
             fullname = idinfo.get("name")
-            username = email.split("@")[0]
+            
+            base = slugify(email.split("@")[0]) or "user"
+            username = f"{base}_{uuid4().hex[:8]}"
+            
             picture_url = idinfo.get("picture")
 
             user, created = User.objects.get_or_create(
@@ -186,14 +218,19 @@ class GoogleLoginView(APIView): # Google Login
             )
             
             if created and picture_url:
-                img_response = requests.get(picture_url)
-                if img_response.status_code == 200:
-                    user.user_image.save(
-                        f"temp.jpg",
-                        ContentFile(img_response.content),
-                        save=True
-                    )
-
+                try:
+                    img_response = requests.get(picture_url)
+                    if img_response.status_code == 200:
+                        user.user_image.save(
+                            f"temp.jpg",
+                            ContentFile(img_response.content),
+                            save=True
+                        )
+                except Timeout:
+                    pass 
+                except RequestException:
+                    pass
+                
             if not created:
                 update_user_login(user)
             
@@ -213,6 +250,7 @@ class GoogleLoginView(APIView): # Google Login
 
 class SendPasswordResetLinkView(APIView): # Forgot Password
     permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetThrottle]
     
     def post(self, request):
         email = request.data.get("email", "").strip()
@@ -243,6 +281,7 @@ class SendPasswordResetLinkView(APIView): # Forgot Password
 
 class PasswordResetConfirmView(APIView): # Reset Password
     permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetThrottle]
     
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
@@ -252,6 +291,7 @@ class PasswordResetConfirmView(APIView): # Reset Password
 
 class UserUpdateView(APIView): # Update User
     permission_classes = [IsAuthenticated]
+    throttle_classes = [MainThrottle]
 
     def patch(self, request):
         serializer = UserUpdateSerializer(request.user, data=request.data, partial=True)
@@ -266,6 +306,7 @@ class UserUpdateView(APIView): # Update User
 class LogoutView(APIView): # Logut
     authentication_classes = []
     permission_classes = [AllowAny]
+    throttle_classes = [MainThrottle]
     
     def post(self, request):
         response = Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
@@ -275,6 +316,7 @@ class LogoutView(APIView): # Logut
 
 class DeleteUserView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [MainThrottle]
 
     def post(self, request):
         user = request.user
@@ -313,12 +355,14 @@ class DeleteUserView(APIView):
 class UserProfileView(RetrieveAPIView): # Me
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [MainThrottle]
 
     def get_object(self):
         return self.request.user
 
 class OtherUsersProfileView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [MainThrottle]
     """
     Return another user's public profile by ID
     """
@@ -350,6 +394,7 @@ def get_csrf(request): # Csrf Token
 
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
+@throttle_classes([MainThrottle])
 def delete_user_image(request):
     user = request.user
 
