@@ -36,3 +36,14 @@ A real-time messaging web application built with Django and WebSockets. Users ca
 ├── file_message/    # File upload with MIME validation
 └── core/            # Settings, ASGI/WSGI, WebSocket auth middleware
 ```
+
+---
+
+## 📄 License
+
+Developed entirely by [Ziad Shalaby](https://github.com/ziadshalaby00).
+
+This project is licensed under the **MIT License**.
+
+---
+
