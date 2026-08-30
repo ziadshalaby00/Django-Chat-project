@@ -18,6 +18,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
+from welcome.views import welcome
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -27,6 +28,7 @@ urlpatterns = [
     path('api/audio_message/', include('audio_message.urls')),
     path('api/file_message/', include('file_message.urls')),
     path('api/text_message/', include('text_message.urls')),
+    path('', welcome, name='welcome'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

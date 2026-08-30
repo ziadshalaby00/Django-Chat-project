@@ -1,9 +1,9 @@
 from django.contrib import admin
 from .models import Message
 # Register your models here.
+from unfold.admin import ModelAdmin
 
-class MessageAdmin(admin.ModelAdmin):
-    list_filter = ['type', 'chat']
-    search_fields = ['id']
-
-admin.site.register(Message, MessageAdmin)
+@admin.register(Message)
+class MessageAdmin(ModelAdmin):
+    list_filter = ["type", "chat"]
+    search_fields = ["id"]

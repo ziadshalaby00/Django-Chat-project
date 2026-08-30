@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.contrib.auth.hashers import make_password
-
+from django.contrib.auth.password_validation import validate_password
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
@@ -9,7 +8,8 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "fullname", "username", "email", "bio", "user_image",
-            "date_joined", "last_login", "is_active", "is_deleted"
+            "date_joined", "last_login", "is_active", "is_deleted","pending_email",
+            "is_email_verified",
         ]
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -22,12 +22,18 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             "email": {"required": True},
         }
 
+    def validate_password(self, value):
+        validate_password(value)
+        return value
+
     def create(self, validated_data):
         password = validated_data.pop("password")
+
         user = User.objects.create_user(
             password=password,
             **validated_data
         )
+
         return user
 
 from django.contrib.auth.tokens import default_token_generator
@@ -62,7 +68,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ["username", "fullname", "email", "password", "old_password", "user_image", "bio"]
+        fields = ["username", "fullname", "password", "old_password", "user_image", "bio"]
 
     def validate(self, attrs):
         if "password" in attrs:

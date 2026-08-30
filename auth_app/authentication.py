@@ -35,7 +35,7 @@ class CSRFMiddlewareWithJWT:
         self.get_response = get_response
         self.exempt_patterns = getattr(settings, "CSRF_EXEMPT_URL_PATTERNS", [])
 
-    def process_view(self, request, view_func, view_args, view_kwargs):
+    def process_view(self, request, callback, callback_args, callback_kwargs):
         path = request.path
 
         for pattern in self.exempt_patterns:

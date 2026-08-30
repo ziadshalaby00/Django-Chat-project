@@ -1,4 +1,7 @@
 from django.urls import path
+
+from auth_app.views.email import EmailVerificationView, ResendVerificationEmailView
+from auth_app.views.profile import ChangeEmailView
 from .views import (
     RegisterView,
     CookieTokenObtainPairView,
@@ -26,6 +29,11 @@ urlpatterns = [
     
     path("password-reset-link/", SendPasswordResetLinkView.as_view(), name="password_reset"),
     path("password-reset-confirm/", PasswordResetConfirmView.as_view(), name="password_reset_confirm"),
+    
+    path("verify-email/", EmailVerificationView.as_view(), name="verify-email"),
+    path("change-email/", ChangeEmailView.as_view(), name="change-email"),
+    path("resend-verification-email/", ResendVerificationEmailView.as_view(), name="resend-verification-email"),
+    
     
     path("get_csrf/", get_csrf, name="get_csrf"),
     path("logout/", LogoutView.as_view(), name="logout"),

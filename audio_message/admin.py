@@ -1,5 +1,7 @@
 from django.contrib import admin
 from .models import AudioMessage
+from unfold.admin import ModelAdmin
 
-# Register your models here.
-admin.site.register(AudioMessage)
+@admin.register(AudioMessage)
+class AudioMessageAdmin(ModelAdmin):
+    pass
