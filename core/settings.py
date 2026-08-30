@@ -37,9 +37,8 @@ CORS_ALLOWED_ORIGINS = [
     "https://localhost:4300",
     "http://localhost:4200",
     "https://localhost:4200",
-    "https://protonwebchat.netlify.app",
-    "https://hon-gains-imagine-verde.trycloudflare.com",
-    'https://protonwebchat.netlify.app',
+    "https://proton.shalabyziad94.workers.dev",
+    "https://desktop-97l1ctr.tailc9493e.ts.net",
 ]
 
 # Application definition
@@ -204,7 +203,7 @@ EMAIL_HOST_USER = env('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 
-FRONTEND_URL = "https://protonwebchat.netlify.app"
+FRONTEND_URL = "https://proton.shalabyziad94.workers.dev/"
 
 # Jwt Cookies
 SAMESITE = 'None'

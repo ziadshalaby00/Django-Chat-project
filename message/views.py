@@ -13,7 +13,7 @@ from asgiref.sync import async_to_sync
 from chat.utils import created_after
 
 class MessagePagination(PageNumberPagination):
-    page_size = 30
+    page_size = 15
 
 class MessageAPIView(APIView):
     def get(self, request, chat_id):
