@@ -29,7 +29,7 @@ def send_verification_email(user, email):
 
     verification_url = (
         f"{settings.FRONTEND_URL}"
-        f"/verify-email?uid={uid}&token={token}"
+        f"/verify-email/{uid}/{token}/"
     )
 
     send_email_ui(
