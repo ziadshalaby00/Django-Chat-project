@@ -56,6 +56,10 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
         return attrs
 
+    def validate_new_password(self, value):
+        validate_password(value)
+        return value
+
     def save(self):
         password = self.validated_data['new_password']
         self.user.set_password(password)
@@ -69,6 +73,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["username", "fullname", "password", "old_password", "user_image", "bio"]
+    
 
     def validate(self, attrs):
         if "password" in attrs:
@@ -79,6 +84,10 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             if not self.instance.check_password(old_password):
                 raise serializers.ValidationError({"old_password": "Current password is incorrect."})
         return attrs
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
 
     def update(self, instance, validated_data):
         validated_data.pop("old_password", None)
