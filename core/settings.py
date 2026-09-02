@@ -192,8 +192,8 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "main": "120/min",
-        "second": "12/hour",
+        "main": "1000/min", # 120/min
+        "second": "1000/min", # 12/hour
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
