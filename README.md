@@ -323,31 +323,6 @@ python populate_messages.py
 
 ---
 
-## 🔧 Configuration Notes
-
-### Database
-- Default: **SQLite** (development)
-- PostgreSQL available in settings (commented out)
-
-### WebSocket
-- **InMemoryChannelLayer** (development)
-- Production: Use Redis Channel Layer
-
-### Email
-- SMTP via Gmail (configured)
-- Templated emails with inline CSS
-
-### Celery
-- Redis broker/backend
-- Scheduled cleanup: expired blacklisted tokens (hourly)
-
-### Security
-- **CORS**: Limited to specific origins
-- **Cookies**: HttpOnly, Secure, SameSite=None
-- **CSRF**: Exempt for public endpoints
-
----
-
 ## 📄 License
 
 Developed entirely by [Ziad Shalaby](https://github.com/ziadshalaby00).
