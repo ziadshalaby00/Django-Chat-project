@@ -1,6 +1,6 @@
-# Proton Chat
+# 📱 Proton — Real-Time Chat & Video Calling
 
-A real-time messaging web application built with Django and WebSockets. Users can create chats, exchange text/audio/file messages, reply to messages, and receive instant notifications.
+A real-time messaging web application built with Django and WebSockets. Users can create chats, exchange text/audio/file messages, reply to messages, calling system, and receive instant notifications.
 
 ## 📌 Features
 
