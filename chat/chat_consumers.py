@@ -37,6 +37,7 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'call.ice_candidate': self.handle_call_ice_candidate,
             'call.reject': self.handle_call_reject,
             'call.end': self.handle_call_end,
+            'camera': self.send_camera_sate
         }
 
         handler = call_handlers.get(message_type)
@@ -55,6 +56,15 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             {
                 'type': 'call_signal',
                 'payload': payload,
+            }
+        )
+
+    async def send_camera_sate(self, content):
+        await self._relay_to_user(
+            content.get('to_user_id'),
+            {
+                'type': 'camera',
+                'state': content.get('state')
             }
         )
 
