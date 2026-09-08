@@ -72,6 +72,8 @@ INSTALLED_APPS = [
     "audio_message",
     "file_message",
     "text_message",
+
+    "django_extensions",
 ]
 
 MIDDLEWARE = [
