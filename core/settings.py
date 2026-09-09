@@ -38,7 +38,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",
     "https://localhost:4200",
     "https://proton.shalabyziad94.workers.dev",
-    "https://desktop-97l1ctr.tailc9493e.ts.net",
+    "https://ziadshalaby00.dpdns.org",
 ]
 
 AUTH_USER_MODEL = "auth_app.User"
