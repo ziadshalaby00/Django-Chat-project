@@ -94,6 +94,6 @@ def validate_file_upload(file) -> str | None:
 
     if detected_mime == "application/zip":
         if file.size > 3 * 1024 * 1024:  # 3MB
-            return "Zip file too large and may be unsafe (max 30MB)"
+            return "Zip file too large and may be unsafe (max 3MB)"
 
     return None
