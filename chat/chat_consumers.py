@@ -37,7 +37,8 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             'call.ice_candidate': self.handle_call_ice_candidate,
             'call.reject': self.handle_call_reject,
             'call.end': self.handle_call_end,
-            'camera': self.send_camera_sate
+            'camera': self.send_camera_sate,
+            'microphone': self.send_microphone_state,
         }
 
         handler = call_handlers.get(message_type)
@@ -67,6 +68,15 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 'state': content.get('state')
             }
         )
+
+    async def send_microphone_state(self, content):
+        await self._relay_to_user(
+            content.get('to_user_id'),
+            {
+                'type': 'microphone',
+                'state': content.get('state')
+            }
+    )
 
     async def handle_call_offer(self, content):
         await self._relay_to_user(
