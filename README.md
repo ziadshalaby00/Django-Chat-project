@@ -2,6 +2,11 @@
 
 A real-time messaging web application built with Django and WebSockets. Users can create chats, exchange text/audio/file messages, reply to messages, calling system, and receive instant notifications.
 
+<img height="200"   alt="Proton-05-02-2026_06_00_PM" src="https://github.com/user-attachments/assets/2b67853b-e90b-4c8f-8ed9-0b54681b86cb" />
+<img height="200"   alt="Proton-05-02-2026_05_58_PM" src="https://github.com/user-attachments/assets/be4d8bf0-7686-460d-998b-f057325361bd" />
+<img height="200"   alt="Proton-05-02-2026_05_53_PM" src="https://github.com/user-attachments/assets/db658c3d-9808-43db-ac6e-1ca1620e5f38" />
+
+
 ## 📌 Features
 
 ### 🔐 Authentication & Security
