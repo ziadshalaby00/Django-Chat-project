@@ -326,13 +326,6 @@ export POPULATE_AUDIO_PATH=/path/to/test/audio.webm
 python populate_messages.py
 ```
 
----
-
-## 📄 License
-
-Developed entirely by [Ziad Shalaby](https://github.com/ziadshalaby00).
-
-This project is licensed under the **MIT License**.
 
 ---
 
